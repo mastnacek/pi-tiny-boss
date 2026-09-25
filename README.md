@@ -119,33 +119,54 @@ Built-in tools always win a name clash, so a config cannot shadow the real
 
 ## Measured quality — read this before enabling it
 
-The plumbing is verified against the real model: 22 tools, 8 prompts, **8/8 plans
-returned, ~470 ms each, no errors, no truncation.** The plugin works.
+Reproduce with `npm run eval` (34 labelled prompts, 5 repeats, 11 short-input
+probes) and `npm run eval:fresh` (fresh engine per prompt, budget sweep).
 
-The plans are not useful. Scored against a hand-written expected tool:
+**The plumbing is verified against the real model.** ~230–2100 ms per call, and
+the ABI is correct. What the evaluation shows is that the model is not useful.
 
-| Config | Score |
+```
+ACCURACY   7/34  =  21%
+ERRORS    20/34  =  59%   needle_complete: tool call truncated: token budget exhausted
+CONFIDENCE  mean 0.77 on all replies vs 0.73 on the wrong ones — not calibrated
+```
+
+| Category | Score |
 | --- | --- |
-| 22 tools | 3/8 |
-| 8 built-ins only | 2/8 |
-| 5 core tools, stricter system prompt | 0/8 |
+| discussion (correct answer: `none`) | 3/12 |
+| search | 2/7 |
+| read | 2/4 |
+| execute | 0/8 |
+| edit | 0/3 |
 
-It is not planning. It is matching lexically — "find where the pi.on
-subscriptions are declared" yields `find` because the word appears in the
-prompt, and almost everything else collapses onto `read`, including "what is the
-capital of France?". Tightening the system prompt does not fix it; it makes the
-model collapse onto `none` instead.
+Three findings that no single demo would have shown:
 
-**This plugin is therefore off by default in spirit: run it, look at
-`/tiny-boss plan`, and judge for yourself.** The default is enabled, so if you
-would rather not have a weak plan injected into every prompt, `/tiny-boss off`
-first. That is the single most useful thing to do with this repo right now.
+**1. The token budget is not the lever.** 1024, 2048 and 4096 give byte-identical
+replies, and truncation is deterministic per prompt — the same prompt truncates
+in every fresh engine, at every budget. An earlier claim in this README that a
+larger budget fixed truncation was wrong, and the eval harness is what caught it.
 
-What needle3 demonstrably *is* good at is the thing `pi-architecture-watcher`
-already uses it for: picking one label from a small fixed set. Open-ended
-selection among 22 options, with ordering, is past what 121M parameters at 2-bit
-can do. If you want to use a tiny local model in your workflow, that shape —
-fixed label set, one decision — is the shape that works.
+**2. A long session decays into `none`.** Calling the same prompt five times in a
+row after ~30 prior calls returns `none` every time, whatever the prompt. So the
+engine is stateful and slowly degenerates, which also means single-prompt demos
+are optimistic relative to a real session.
+
+**3. Confidence is worse than useless.** The model reports `0.97` for "what is the
+capital of France?" and `0.98` for `!!!!` while producing nothing, and its mean
+confidence is *higher* on wrong answers than on all replies. A confident wrong
+prior is more dangerous than a vague one, so the plan text deliberately does not
+surface the number.
+
+**Recommended use: `/tiny-boss off`.** The 24-character gate in the hook is what
+actually protects a session — 11/11 short or garbage inputs still produced a plan,
+every one of them `none`, so the character count, not the model's judgement, is
+doing the work.
+
+What needle3 demonstrably *is* good at is what `pi-architecture-watcher` already
+uses it for: one label from a small fixed set. Open-ended selection among 22
+options, with ordering, is past what 121M parameters at 2-bit can do. If you want
+a tiny local model in your workflow, that shape — fixed label set, one decision —
+is the shape that works.
 
 ## Architecture
 

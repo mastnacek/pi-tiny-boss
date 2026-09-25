@@ -15,8 +15,9 @@
     "README.md",
     "package.json",
     "./index.ts",
-    "dist",
-    "src"
+    "src",
+    "eval",
+    "test"
   ],
   "pi": {
     "extensions": [
@@ -32,6 +33,9 @@
   },
   "scripts": {
     "check": "tsc --noEmit",
-    "test": "npx tsx --test test/**/*.test.js"
+    "test": "npx tsx --test test/**/*.test.js",
+    "eval": "npx tsx eval/accuracy.ts && npx tsx eval/report.ts",
+    "eval:fresh": "npx tsx eval/fresh-engine.ts",
+    "eval:report": "npx tsx eval/report.ts"
   }
 }

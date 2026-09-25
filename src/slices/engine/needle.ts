@@ -48,9 +48,13 @@ type NeedleFactory = (options: Record<string, unknown>) => Promise<NeedleModule>
 const OUT_BUFFER_BYTES = 262144;
 
 /**
- * Generation budget. needle3 reasons before it answers, so the budget is not
- * about output size: 512 tokens truncated mid tool-call on a 22-tool enum and
- * produced `error_code: "truncated"`. 1024 completes reliably.
+ * Generation budget.
+ *
+ * This is NOT the lever it looks like. An earlier note here claimed 1024 fixed
+ * the truncation that 512 suffered; the evaluation in `eval/` disproved that.
+ * 1024, 2048 and 4096 produce byte-identical replies, and 59% of prompts
+ * truncate at every one of them, deterministically. The budget is left at 1024
+ * because it is cheap and does not make anything worse, not because it helps.
  */
 const MAX_TOKENS = 1024;
 

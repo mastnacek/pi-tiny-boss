@@ -98,3 +98,60 @@ test("the init manifest is one flat tool: an array of names", () => {
 	// is what needle3 answers with an empty array to.
 	assert.equal(list.items.type, "string");
 });
+
+// --- planner degradation -------------------------------------------------
+// 59% of real needle3 replies are `error_code: "truncated"`, which the engine
+// surfaces as a throw. That is the dominant path, so it gets locked down here.
+
+import { planPrompt } from "../src/slices/planner/index.js";
+import { createInitialState } from "../src/shared/state.js";
+
+test("a throwing engine yields no plan, never an exception", async () => {
+	const state = createInitialState();
+	const engine = {
+		plan: async () => {
+			throw new Error("needle_complete: tool call truncated: token budget exhausted (truncated)");
+		},
+		close: async () => {},
+	};
+	const result = await planPrompt(state, { prompt: "run the tests", engine });
+	assert.equal(result, null, "the prompt must pass through untouched");
+	assert.equal(state.planCount, 0, "a failure is not a plan");
+	assert.equal(state.lastPlan, null);
+});
+
+test("an engine that returns unusable JSON yields no plan", async () => {
+	const state = createInitialState();
+	const engine = {
+		plan: async () => ({ steps: [], raw: "not json at all" }),
+		close: async () => {},
+	};
+	assert.equal(await planPrompt(state, { prompt: "run the tests", engine }), null);
+	assert.equal(state.planCount, 0);
+});
+
+test("an engine slower than the budget yields no plan", async () => {
+	const state = createInitialState();
+	const engine = {
+		plan: () => new Promise(() => {}), // never settles
+		close: async () => {},
+	};
+	const result = await planPrompt(state, { prompt: "run the tests", engine, timeoutMs: 20 });
+	assert.equal(result, null, "a hung engine must not block the prompt path");
+});
+
+test("a usable plan from the engine is recorded on state", async () => {
+	const state = createInitialState();
+	const engine = {
+		plan: async () => ({
+			steps: [],
+			raw: JSON.stringify({ function_calls: [{ name: "emit_plan", arguments: { tools: ["bash"] } }] }),
+		}),
+		close: async () => {},
+	};
+	const result = await planPrompt(state, { prompt: "run the tests", engine });
+	assert.ok(result, "a parseable plan must survive");
+	assert.equal(result.steps[0].tool, "bash");
+	assert.equal(state.planCount, 1);
+	assert.ok(state.lastPlan, "the plan is kept for /tiny-boss status");
+});

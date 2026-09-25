@@ -1,0 +1,259 @@
+{
+ "cases": [
+  [
+   "find where the pi.on subscriptions are declared",
+   [
+    "grep",
+    "rg",
+    "find",
+    "fd"
+   ]
+  ],
+  [
+   "search for every TODO in the project and list the files",
+   [
+    "grep",
+    "rg",
+    "find",
+    "fd"
+   ]
+  ],
+  [
+   "locate the file that defines the Foo class",
+   [
+    "grep",
+    "rg",
+    "find",
+    "fd"
+   ]
+  ],
+  [
+   "which files mention process.env.PATH",
+   [
+    "grep",
+    "rg"
+   ]
+  ],
+  [
+   "read the plan schema and explain it",
+   [
+    "read"
+   ]
+  ],
+  [
+   "what does this function do",
+   [
+    "read"
+   ]
+  ],
+  [
+   "explain how the compaction threshold works",
+   [
+    "read",
+    "grep",
+    "rg"
+   ]
+  ],
+  [
+   "show me the config file contents",
+   [
+    "read",
+    "cat",
+    "bat"
+   ]
+  ],
+  [
+   "fix the failing test in gate.test.js",
+   [
+    "read",
+    "edit"
+   ]
+  ],
+  [
+   "rename a variable across the repo",
+   [
+    "grep",
+    "rg",
+    "edit",
+    "bash",
+    "sd"
+   ]
+  ],
+  [
+   "update the version number in package.json",
+   [
+    "read",
+    "edit",
+    "sd"
+   ]
+  ],
+  [
+   "add a new test case for the empty input branch",
+   [
+    "read",
+    "edit",
+    "write"
+   ]
+  ],
+  [
+   "run the test suite and fix whatever fails",
+   [
+    "bash"
+   ]
+  ],
+  [
+   "install the missing npm dependencies and run the tests",
+   [
+    "bash"
+   ]
+  ],
+  [
+   "commit and push the change to GitHub",
+   [
+    "bash",
+    "git"
+   ]
+  ],
+  [
+   "build the project and show me the bundle size",
+   [
+    "bash"
+   ]
+  ],
+  [
+   "benchmark the scanner against the previous release",
+   [
+    "bash",
+    "hyperfine"
+   ]
+  ],
+  [
+   "which files are over 400 lines",
+   [
+    "find",
+    "fd",
+    "bash",
+    "rg"
+   ]
+  ],
+  [
+   "is this codebase vertical slice architecture or layered",
+   [
+    "read",
+    "grep",
+    "rg",
+    "find"
+   ]
+  ],
+  [
+   "how many external dependencies does this repo have",
+   [
+    "read",
+    "bash",
+    "grep",
+    "rg",
+    "jq"
+   ]
+  ],
+  [
+   "what is the capital of France?",
+   [
+    "none"
+   ]
+  ],
+  [
+   "how does a monorepo differ from a polyrepo?",
+   [
+    "none"
+   ]
+  ],
+  [
+   "explain the difference between a mutex and a semaphore",
+   [
+    "none"
+   ]
+  ],
+  [
+   "should I use Vitest or node:test for this project?",
+   [
+    "none"
+   ]
+  ],
+  [
+   "what does the pi.on event do",
+   [
+    "none"
+   ]
+  ],
+  [
+   "cist osuboru",
+   [
+    "read"
+   ]
+  ],
+  [
+   "najdi vsechny soubory s TODO",
+   [
+    "grep",
+    "rg",
+    "find",
+    "fd"
+   ]
+  ],
+  [
+   "wie funktioniert der Cache",
+   [
+    "none"
+   ]
+  ],
+  [
+   "kfsyfh",
+   [
+    "none"
+   ]
+  ],
+  [
+   ")",
+   [
+    "none"
+   ]
+  ],
+  [
+   "kfy",
+   [
+    "none"
+   ]
+  ],
+  [
+   "n",
+   [
+    "none"
+   ]
+  ],
+  [
+   "asdfghjkl",
+   [
+    "none"
+   ]
+  ],
+  [
+   "!!!!",
+   [
+    "none"
+   ]
+  ]
+ ],
+ "mustBeSilent": [
+  "kfsyfh",
+  ")",
+  "kfy",
+  "n",
+  "asdfghjkl",
+  "!!!!",
+  "ok",
+  "yes",
+  "hi",
+  "/status",
+  "12345"
+ ]
+}
