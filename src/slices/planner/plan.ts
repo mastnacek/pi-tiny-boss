@@ -12,30 +12,21 @@ import type { PlanStep, ToolSpec } from "../../shared/types.js";
 // re-exported here so planner consumers have one import site.
 export { PLAN_SYSTEM_PROMPT, PLAN_TOOL_NAME, buildToolsJson };
 
-/** Coerce one engine-supplied step, dropping anything malformed. */
-function coerceStep(input: unknown, specs: Map<string, ToolSpec>): PlanStep | null {
-	if (!input || typeof input !== "object") return null;
-	const raw = input as Record<string, unknown>;
-	const tool = typeof raw.tool === "string" ? raw.tool.trim() : "";
-	if (!tool) return null;
+/** Coerce one tool name from the engine reply into a renderable step. */
+function coerceStep(name: unknown, specs: Map<string, ToolSpec>): PlanStep | null {
+	if (typeof name !== "string") return null;
+	const tool = name.trim();
 	const spec = specs.get(tool);
 	if (!spec) return null;
-	const args =
-		raw.args && typeof raw.args === "object" && !Array.isArray(raw.args)
-			? (raw.args as Record<string, unknown>)
-			: {};
-	const why = typeof raw.why === "string" ? raw.why.trim() : "";
-	return {
-		tool,
-		args,
-		why: why.slice(0, 240),
-		invokedAs: spec.invokedAs,
-		example: spec.example,
-	};
+	return { tool, args: {}, why: "", invokedAs: spec.invokedAs, example: spec.example };
 }
 
 /**
  * Parse the engine's JSON into a plan.
+ *
+ * `suppressed_calls` is checked alongside `function_calls`: needle3 routes
+ * schema-valid calls to the former, so reading only the latter reports "no plan"
+ * for output that is actually there.
  *
  * Returns an empty array for every unusable shape rather than throwing: a 121M
  * model produces junk regularly, and junk must degrade to "no plan", never to
@@ -52,21 +43,20 @@ export function parsePlan(raw: string, tools: ToolSpec[]): PlanStep[] {
 	if (!parsed || typeof parsed !== "object") return [];
 
 	const container = parsed as Record<string, unknown>;
-	const calls = Array.isArray(container.function_calls)
-		? (container.function_calls as unknown[])
-		: Array.isArray(container.calls)
-			? (container.calls as unknown[])
-			: [];
+	const calls = [
+		...(Array.isArray(container.function_calls) ? (container.function_calls as unknown[]) : []),
+		...(Array.isArray(container.suppressed_calls) ? (container.suppressed_calls as unknown[]) : []),
+	];
 
 	for (const call of calls) {
 		if (!call || typeof call !== "object") continue;
 		const args = (call as Record<string, unknown>).arguments;
 		if (!args || typeof args !== "object") continue;
-		const steps = (args as Record<string, unknown>).steps;
-		if (!Array.isArray(steps)) continue;
+		const tools_ = (args as Record<string, unknown>).tools;
+		if (!Array.isArray(tools_)) continue;
 
-		const coerced = steps
-			.map((s) => coerceStep(s, specs))
+		const coerced = tools_
+			.map((t) => coerceStep(t, specs))
 			.filter((s): s is PlanStep => s !== null);
 		if (coerced.length > 0) return coerced.slice(0, 6);
 	}
@@ -101,13 +91,13 @@ export function renderDirective(plan: PlanStep[], userPrompt: string): string {
 	return [
 		"",
 		"<tiny-boss-plan>",
-		"A 121M local model (needle3) planned this before you woke up. It costs nothing",
-		"and runs offline, but it is small and it is sometimes wrong.",
+		"A 121M local model (needle3) picked these tools before you woke up. It costs",
+		"nothing and runs offline, but it is small and it is frequently wrong.",
 		"",
 		...lines,
 		"",
-		"Use this plan as a strong hint, not an order. If a step is wrong or the work needs",
-		"a different approach, deviate and say why in one sentence.",
+		"Use this as a weak hint, not an order. If a tool is wrong or the work needs",
+		"a different approach, ignore it and say why in one sentence.",
 		"</tiny-boss-plan>",
 		"",
 		userPrompt,

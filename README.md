@@ -117,6 +117,36 @@ A malformed file yields an empty list — bad config never breaks the hook.
 Built-in tools always win a name clash, so a config cannot shadow the real
 `read`.
 
+## Measured quality — read this before enabling it
+
+The plumbing is verified against the real model: 22 tools, 8 prompts, **8/8 plans
+returned, ~470 ms each, no errors, no truncation.** The plugin works.
+
+The plans are not useful. Scored against a hand-written expected tool:
+
+| Config | Score |
+| --- | --- |
+| 22 tools | 3/8 |
+| 8 built-ins only | 2/8 |
+| 5 core tools, stricter system prompt | 0/8 |
+
+It is not planning. It is matching lexically — "find where the pi.on
+subscriptions are declared" yields `find` because the word appears in the
+prompt, and almost everything else collapses onto `read`, including "what is the
+capital of France?". Tightening the system prompt does not fix it; it makes the
+model collapse onto `none` instead.
+
+**This plugin is therefore off by default in spirit: run it, look at
+`/tiny-boss plan`, and judge for yourself.** The default is enabled, so if you
+would rather not have a weak plan injected into every prompt, `/tiny-boss off`
+first. That is the single most useful thing to do with this repo right now.
+
+What needle3 demonstrably *is* good at is the thing `pi-architecture-watcher`
+already uses it for: picking one label from a small fixed set. Open-ended
+selection among 22 options, with ordering, is past what 121M parameters at 2-bit
+can do. If you want to use a tiny local model in your workflow, that shape —
+fixed label set, one decision — is the shape that works.
+
 ## Architecture
 
 Vertical slices, one dependency direction:

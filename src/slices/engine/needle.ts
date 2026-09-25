@@ -1,17 +1,20 @@
 /**
  * needle3 engine: Emscripten WASM instantiation and one-shot planning.
  *
- * The C ABI is:
- *   _needle_init(systemPrompt, toolsJson, toolIndexPath) -> int
- *   _needle_complete(prompt, maxTokens, outBuf, outBufSize) -> int
- *   _needle_last_error() -> char*
- *   _needle_reset()
+ * The real ABI, established by probing the shipped `needle.wasm` rather than
+ * assumed — every earlier guess here was wrong:
  *
- * Everything is defensive: this module is reached from the `input` hook, and an
- * exception here would surface as a broken session rather than a missing plan.
+ *   _needle_load(modelPtr, modelLen: i64)  -> 0 on success
+ *   _needle_init(systemPromptPtr, toolsJsonPtr) -> session handle
+ *   _needle_complete(promptPtr, maxTokens, outPtr, outSize) -> tokens generated
+ *
+ * There is no `FS`, no `stringToUTF8` and no `_needle_last_error`. Errors come
+ * back as a JSON envelope in the out buffer (`success`, `error`, `error_code`),
+ * so failures are read from the reply rather than from a C error string.
  */
 
 import { assetPath, readModelBytes, assetsReady } from "./assets.js";
+import { pathToFileURL } from "node:url";
 import { PLAN_SYSTEM_PROMPT, buildToolsJson } from "../../shared/plan-schema.js";
 import { manifestTools } from "../../shared/manifest.js";
 import type { PlanStep, TinyEngine, ToolSpec } from "../../shared/types.js";
@@ -29,31 +32,37 @@ export class EngineUnavailableError extends Error {
 
 /** The subset of the Emscripten module we actually call. */
 interface NeedleModule {
-	FS?: { writeFile(path: string, data: Uint8Array): void };
 	_malloc(size: number): number;
 	_free(ptr: number): void;
-	_needle_init(systemPrompt: number, toolsJson: number, toolIndexPath: number): number;
-	_needle_complete(prompt: number, maxTokens: number, out: number, outSize: number): number;
-	_needle_last_error(): number;
+	_needle_load(modelPtr: number, modelLen: bigint): number;
+	_needle_init(systemPromptPtr: number, toolsJsonPtr: number): number;
+	_needle_complete(promptPtr: number, maxTokens: number, out: number, outSize: number): number;
 	_needle_reset(): void;
-	stringToUTF8?(str: string, maxBytes?: number): number;
-	UTF8ToString?(ptr: number): string;
+	UTF8ToString(ptr: number): string;
 	HEAPU8: Uint8Array;
-	onRuntimeInitialized?: () => void;
-	onAbort?: (reason: unknown) => void;
 }
 
 type NeedleFactory = (options: Record<string, unknown>) => Promise<NeedleModule> | NeedleModule;
 
 /** Bytes reserved for the engine's JSON reply. */
-const OUT_BUFFER_BYTES = 8192;
-/** Generation cap. needle3 answers with a handful of fields, never prose. */
-const MAX_TOKENS = 512;
+const OUT_BUFFER_BYTES = 262144;
 
-/** C-string writer, falling back to Emscripten's allocator helpers. */
+/**
+ * Generation budget. needle3 reasons before it answers, so the budget is not
+ * about output size: 512 tokens truncated mid tool-call on a 22-tool enum and
+ * produced `error_code: "truncated"`. 1024 completes reliably.
+ */
+const MAX_TOKENS = 1024;
+
+/**
+ * C-string writer.
+ *
+ * The glue exports no `stringToUTF8`, so this encodes UTF-8 into a fresh malloc.
+ * `HEAPU8` is re-read on every write: growing WASM memory detaches the old view,
+ * and holding a stale one throws "detached ArrayBuffer".
+ */
 function makeEncoder(module: NeedleModule): (text: string) => number {
-	if (typeof module.stringToUTF8 === "function") return (text) => module.stringToUTF8!(text);
-	return (text) => {
+	return (text: string): number => {
 		const bytes = new TextEncoder().encode(text);
 		const ptr = module._malloc(bytes.length + 1);
 		module.HEAPU8.set(bytes, ptr);
@@ -62,49 +71,46 @@ function makeEncoder(module: NeedleModule): (text: string) => number {
 	};
 }
 
-/** C-string reader with a manual fallback. */
-function makeDecoder(module: NeedleModule): (ptr: number) => string {
-	if (typeof module.UTF8ToString === "function") return (ptr) => module.UTF8ToString!(ptr);
-	return (ptr) => {
-		if (!ptr) return "";
-		const bytes = module.HEAPU8.slice(ptr);
-		const end = bytes.indexOf(0);
-		return new TextDecoder().decode(end >= 0 ? bytes.slice(0, end) : bytes);
-	};
-}
-
-/** Import the Emscripten glue, preload the model, and wait for the runtime. */
+/** Import the Emscripten glue and load the weights into the WASM heap. */
 async function instantiate(): Promise<NeedleModule> {
 	const jsPath = assetPath("needle.js");
 	const wasmPath = assetPath("needle.wasm");
-	const glue = (await import(/* @vite-ignore */ jsPath)) as Record<string, unknown>;
+	// A bare Windows path is not a valid ESM specifier — the loader requires a
+	// URL. pathToFileURL also handles the drive-letter case that hand-writing a
+	// `file://` prefix gets wrong.
+	const glue = (await import(pathToFileURL(jsPath).href)) as Record<string, unknown>;
 	const createNeedle = (glue.default ?? glue.createNeedle) as NeedleFactory | undefined;
 	if (typeof createNeedle !== "function") {
 		throw new EngineUnavailableError("needle.js exports no createNeedle", "engine-error");
 	}
 
-	const modelBytes = await readModelBytes();
 	const module = await createNeedle({
 		locateFile: (path: string) => (path.endsWith(".wasm") ? wasmPath : path),
 	});
 
-	// Write the weights into the Emscripten virtual FS after construction: the
-	// preRun hook runs before the factory resolves, so this ordering is the only
-	// one that reliably lands the bytes in time for needle_init.
-	try {
-		module.FS?.writeFile("/needle3.cact", modelBytes);
-	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
-		throw new EngineUnavailableError(`model preload failed: ${message}`, "engine-error");
-	}
-
-	if (typeof module.onRuntimeInitialized === "function") {
-		await new Promise<void>((resolve, reject) => {
-			module.onRuntimeInitialized = () => resolve();
-			module.onAbort = (reason) => reject(new Error(`WASM aborted: ${String(reason)}`));
-		});
+	// There is no Emscripten FS to preload into, so the weights go straight into
+	// the heap. _malloc may grow memory, hence HEAPU8 is read afterwards.
+	const modelBytes = await readModelBytes();
+	const modelPtr = module._malloc(modelBytes.length);
+	module.HEAPU8.set(modelBytes, modelPtr);
+	const code = module._needle_load(modelPtr, BigInt(modelBytes.length));
+	if (code !== 0) {
+		throw new EngineUnavailableError(`needle_load returned ${code}`, "engine-error");
 	}
 	return module;
+}
+
+/** The error text needle3 reported, if the reply carries one. */
+function replyError(raw: string): string | null {
+	try {
+		const parsed = JSON.parse(raw) as { success?: boolean; error?: unknown; error_code?: unknown };
+		if (parsed?.success === true) return null;
+		const message = typeof parsed?.error === "string" ? parsed.error : "unknown error";
+		const code = typeof parsed?.error_code === "string" ? ` (${parsed.error_code})` : "";
+		return `${message}${code}`;
+	} catch {
+		return null;
+	}
 }
 
 /**
@@ -131,18 +137,17 @@ export async function createNeedleEngine(tools: ToolSpec[] = []): Promise<TinyEn
 	}
 
 	const encode = makeEncoder(module);
-	const decode = makeDecoder(module);
 
-	// needle_init takes the tool manifest once, and the manifest is static for
-	// the process, so this runs exactly once per session.
+	// needle_init takes the manifest once, and the manifest is static for the
+	// process, so this runs exactly once per session. The return value is a
+	// session handle, not a status code: a negative value means failure.
 	try {
-		const code = module._needle_init(
+		const handle = module._needle_init(
 			encode(PLAN_SYSTEM_PROMPT),
 			encode(buildToolsJson(manifestTools(tools))),
-			0,
 		);
-		if (code < 0) {
-			throw new Error(decode(module._needle_last_error()) || `exit code ${code}`);
+		if (handle < 0) {
+			throw new Error(`init handle ${handle}`);
 		}
 	} catch (error) {
 		if (error instanceof EngineUnavailableError) throw error;
@@ -154,12 +159,12 @@ export async function createNeedleEngine(tools: ToolSpec[] = []): Promise<TinyEn
 		plan: async (prompt: string, _tools: ToolSpec[]) => {
 			const out = module._malloc(OUT_BUFFER_BYTES);
 			try {
-				const code = module._needle_complete(encode(prompt), MAX_TOKENS, out, OUT_BUFFER_BYTES);
-				if (code < 0) {
-					throw new Error(decode(module._needle_last_error()) || `exit code ${code}`);
-				}
+				module._needle_complete(encode(prompt), MAX_TOKENS, out, OUT_BUFFER_BYTES);
+				const raw = module.UTF8ToString(out);
+				const failure = replyError(raw);
+				if (failure) throw new Error(`needle_complete: ${failure}`);
 				// Parsing is the planner's job; hand back the raw JSON verbatim.
-				return { steps: [] as PlanStep[], raw: decode(out) };
+				return { steps: [] as PlanStep[], raw };
 			} finally {
 				module._free(out);
 			}

@@ -6,35 +6,30 @@ import { manifestTools } from "../src/shared/manifest.js";
 
 const tools = manifestTools();
 
-/** Wrap steps the way needle3 wraps them, in a function_calls envelope. */
-const envelope = (steps) =>
-	JSON.stringify({
-		function_calls: [
-			{ name: "emit_plan", arguments: { steps } },
-		],
-	});
+/** Wrap a tool list the way needle3 wraps it, in a function_calls envelope. */
+const envelope = (list) =>
+	JSON.stringify({ function_calls: [{ name: "emit_plan", arguments: { tools: list } }] });
 
 test("a well-formed plan is parsed in order", () => {
-	const raw = envelope([
-		{ tool: "grep", args: { pattern: "on(" }, why: "find the listeners" },
-		{ tool: "read", args: { path: "index.ts" }, why: "read the entry" },
-	]);
-	const steps = parsePlan(raw, tools);
-	assert.equal(steps.length, 2);
-	assert.equal(steps[0].tool, "grep");
-	assert.equal(steps[1].tool, "read");
-	assert.deepEqual(steps[0].args, { pattern: "on(" });
-	assert.equal(steps[0].why, "find the listeners");
+	const steps = parsePlan(envelope(["grep", "read", "edit"]), tools);
+	assert.equal(steps.length, 3);
+	assert.deepEqual(steps.map((s) => s.tool), ["grep", "read", "edit"]);
+});
+
+test("the plan carries no arguments, only tool names", () => {
+	const steps = parsePlan(envelope(["grep"]), tools);
+	assert.deepEqual(steps[0].args, {}, "needle3 names tools; the model supplies arguments");
+	assert.equal(steps[0].why, "");
 });
 
 test("a tool outside the manifest is dropped, not passed through", () => {
-	const raw = envelope([
-		{ tool: "rm", args: {}, why: "destroy everything" },
-		{ tool: "read", args: { path: "a.ts" }, why: "read it" },
-	]);
-	const steps = parsePlan(raw, tools);
-	assert.equal(steps.length, 1);
-	assert.equal(steps[0].tool, "read");
+	const steps = parsePlan(envelope(["rm", "read", "sudo"]), tools);
+	assert.deepEqual(steps.map((s) => s.tool), ["read"]);
+});
+
+test("a fully unknown plan yields no steps rather than a partial one", () => {
+	assert.deepEqual(parsePlan(envelope(["rm", "sudo"]), tools), []);
+	assert.deepEqual(parsePlan(envelope([]), tools), []);
 });
 
 test("non-JSON output yields no plan instead of throwing", () => {
@@ -45,27 +40,36 @@ test("non-JSON output yields no plan instead of throwing", () => {
 	assert.deepEqual(parsePlan(JSON.stringify({ function_calls: [] }), tools), []);
 });
 
+test("suppressed_calls are read as well as function_calls", () => {
+	// needle3 routes schema-valid output to suppressed_calls; reading only
+	// function_calls would report "no plan" for output that is really there.
+	const raw = JSON.stringify({
+		function_calls: [],
+		suppressed_calls: [{ name: "emit_plan", arguments: { tools: ["bash"] } }],
+	});
+	assert.deepEqual(parsePlan(raw, tools).map((s) => s.tool), ["bash"]);
+});
+
+test("function_calls wins when both envelopes are present", () => {
+	const raw = JSON.stringify({
+		function_calls: [{ name: "emit_plan", arguments: { tools: ["read"] } }],
+		suppressed_calls: [{ name: "emit_plan", arguments: { tools: ["bash"] } }],
+	});
+	assert.deepEqual(parsePlan(raw, tools).map((s) => s.tool), ["read"]);
+});
+
 test("a plan is capped at six steps", () => {
-	const raw = envelope(
-		Array.from({ length: 12 }, (_unused, i) => ({ tool: "read", args: { path: `${i}.ts` }, why: "s" })),
-	);
-	assert.equal(parsePlan(raw, tools).length, 6);
+	const steps = parsePlan(envelope(["read", "read", "read", "read", "read", "read", "read", "bash"]), tools);
+	assert.equal(steps.length, 6);
 });
 
-test("a missing args object becomes an empty object, not a crash", () => {
-	const steps = parsePlan(envelope([{ tool: "ls", why: "look around" }]), tools);
-	assert.equal(steps.length, 1);
-	assert.deepEqual(steps[0].args, {});
-});
-
-test("an array-valued args is dropped rather than spread into a tool call", () => {
-	const steps = parsePlan(envelope([{ tool: "ls", args: [1, 2], why: "look" }]), tools);
-	assert.equal(steps.length, 1, "the step survives so the order is not lost");
-	assert.deepEqual(steps[0].args, {}, "but the array must never become the arguments");
+test("a non-string entry is skipped, not coerced", () => {
+	const steps = parsePlan(envelope(["read", 42, null, "bash"]), tools);
+	assert.deepEqual(steps.map((s) => s.tool), ["read", "bash"]);
 });
 
 test("the directive keeps the user prompt intact and last", () => {
-	const steps = parsePlan(envelope([{ tool: "grep", args: { pattern: "x" }, why: "find it" }]), tools);
+	const steps = parsePlan(envelope(["grep"]), tools);
 	const prompt = "why is the sidebar leaking listeners on reload?";
 	const out = renderDirective(steps, prompt);
 
@@ -77,23 +81,20 @@ test("the directive keeps the user prompt intact and last", () => {
 });
 
 test("the directive tells the model it may overrule the plan", () => {
-	const steps = parsePlan(envelope([{ tool: "read", why: "look" }]), tools);
-	const out = renderDirective(steps, "do the thing");
-	assert.match(out, /hint, not an order/i);
+	const out = renderDirective(parsePlan(envelope(["read"]), tools), "do the thing");
+	assert.match(out, /weak hint, not an order/i);
+	assert.match(out, /frequently wrong/i);
 });
 
-test("an over-long why is truncated so the block stays readable", () => {
-	const long = "x".repeat(500);
-	const steps = parsePlan(envelope([{ tool: "read", why: long }]), tools);
-	assert.equal(steps[0].why.length, 240);
-});
-
-test("the init manifest is a single emit_plan tool with an ordered step list", () => {
+test("the init manifest is one flat tool: an array of names", () => {
 	const manifest = JSON.parse(buildToolsJson(tools));
 	assert.equal(manifest.length, 1);
 	assert.equal(manifest[0].name, "emit_plan");
-	const steps = manifest[0].parameters.properties.steps;
-	assert.equal(steps.type, "array");
-	assert.deepEqual(steps.items.properties.tool.enum, tools.map((t) => t.name));
-	assert.deepEqual(steps.items.required, ["tool", "why"]);
+	const list = manifest[0].parameters.properties.tools;
+	assert.equal(list.type, "array");
+	assert.deepEqual(list.items.enum, tools.map((t) => t.name));
+	assert.deepEqual(manifest[0].parameters.required, ["tools"]);
+	// The flat shape is deliberate: the nested object form with free-text `why`
+	// is what needle3 answers with an empty array to.
+	assert.equal(list.items.type, "string");
 });

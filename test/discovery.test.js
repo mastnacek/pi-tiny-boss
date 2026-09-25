@@ -139,9 +139,7 @@ test("a plan naming a detected binary renders as a runnable bash command", () =>
 		},
 	]);
 	const raw = JSON.stringify({
-		function_calls: [
-			{ name: "emit_plan", arguments: { steps: [{ tool: "rg", why: "find the listeners" }] } },
-		],
+		function_calls: [{ name: "emit_plan", arguments: { tools: ["rg"] } }],
 	});
 	const steps = parsePlan(raw, tools);
 	assert.equal(steps.length, 1, "the binary is a legal step once detected");
@@ -155,9 +153,7 @@ test("a plan naming a detected binary renders as a runnable bash command", () =>
 
 test("a binary absent from the manifest is dropped, not rendered", () => {
 	const raw = JSON.stringify({
-		function_calls: [
-			{ name: "emit_plan", arguments: { steps: [{ tool: "lazygit", why: "x" }] } },
-		],
+		function_calls: [{ name: "emit_plan", arguments: { tools: ["lazygit"] } }],
 	});
 	assert.deepEqual(parsePlan(raw, manifestTools()), []);
 });
