@@ -5,7 +5,7 @@
  * The kernel is deliberately free of any `@receptron/laya` import. Laya's own
  * `Question` / `ChoiceAnswer` types are declared structurally below, and the
  * engine slice is the single place that casts them to the real ones. That keeps
- * every other slice — and the whole test suite — independent of a 1.7 GB native
+ * every other slice — and the whole test suite — independent of a 1.6 GB native
  * dependency being installed and loadable.
  */
 
@@ -99,7 +99,7 @@ export type LayaAnswers = Record<string, LayaChoiceAnswer>;
 
 /**
  * The seam that makes the plugin testable: the planner never touches ONNX, it
- * only talks to this interface, so tests inject a fake and never download 1.7 GB.
+ * only talks to this interface, so tests inject a fake and never download 1.6 GB.
  */
 export interface TinyEngine {
 	/** Answer every question in one forward pass. Throws on engine failure. */

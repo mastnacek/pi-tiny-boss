@@ -9,7 +9,7 @@
  * reaches the right buckets, whether the probabilities mean anything, and what
  * the whole thing costs in wall-clock time.
  *
- * Requires the ONNX bundle (`/tiny-boss fetch`, about 1.7 GB). Writes
+ * Requires the ONNX bundle (`/tiny-boss fetch`, about 1.6 GB). Writes
  * `eval/out.json`; `eval/report.ts` scores it.
  */
 
@@ -41,7 +41,7 @@ try {
 } catch (error) {
 	const message = error instanceof Error ? error.message : String(error);
 	console.error(`\nCannot measure: ${message}\n`);
-	console.error("Download the bundle first: /tiny-boss fetch   (about 1.7 GB, once)\n");
+	console.error("Download the bundle first: /tiny-boss fetch   (about 1.6 GB, once)\n");
 	process.exit(1);
 }
 

@@ -98,7 +98,7 @@ export default function (pi: ExtensionAPI): void {
 			const { dir, resumed } = await fetchBundle((progress) => {
 				const line = `${progress.file} ${mb(progress.received)}${progress.total ? ` / ${mb(progress.total)}` : ""}`;
 				// One notification per file per megabyte, not per chunk: the fetch
-				// streams a 1.7 GB file and a notify per chunk would drown the TUI.
+				// streams a 1.6 GB file and a notify per chunk would drown the TUI.
 				const key = `${progress.file}:${Math.floor(progress.received / (8 * 1024 * 1024))}`;
 				if (last.get(progress.file) === key) return;
 				last.set(progress.file, key);
@@ -117,7 +117,7 @@ export default function (pi: ExtensionAPI): void {
 		},
 		warmEngine: async () => {
 			if (!(await assetsReady())) {
-				return "Laya ONNX bundle is not cached — run /tiny-boss fetch first (~1.7 GB, once)";
+				return "Laya ONNX bundle is not cached — run /tiny-boss fetch first (~1.6 GB, once)";
 			}
 			const resolution = await warmEngine(state);
 			if (!resolution.ok) return `warm failed — ${resolution.message}`;

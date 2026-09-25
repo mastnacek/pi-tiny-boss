@@ -12,6 +12,8 @@ import {
 	bundleDir,
 	cacheBytes,
 	layaCacheDir,
+	mirroredBundleDir,
+	stateDir,
 } from "../src/slices/engine/assets.js";
 
 /**
@@ -57,10 +59,25 @@ test("the bundle is the five files one exported checkpoint consists of", () => {
 	]);
 });
 
+/**
+ * Every test here pins its own state directory.
+ *
+ * `bundleDir()` prefers the path a real `/tiny-boss fetch` recorded, which on a
+ * machine that has run one is the user's actual cache — so a test that only sets
+ * `LAYA_CACHE` would read the operator's bundle and assert against it. That is a
+ * test that passes or fails depending on whether the feature was ever used, which
+ * is worse than no test. Pinning `PI_TINY_BOSS_STATE_DIR` removes the dependency.
+ */
+const emptyState = (stateDirPath) => ({
+	PI_TINY_BOSS_MODEL_DIR: undefined,
+	LAYA_MODEL_DIR: undefined,
+	PI_TINY_BOSS_STATE_DIR: stateDirPath,
+});
+
 test("an explicit model directory wins over everything else", async () => {
 	const { dir, cleanup } = tempDir();
 	try {
-		await withEnv({ PI_TINY_BOSS_MODEL_DIR: dir, LAYA_MODEL_DIR: undefined }, async () => {
+		await withEnv({ ...emptyState(dir), PI_TINY_BOSS_MODEL_DIR: dir }, async () => {
 			assert.equal(bundleDir(), dir);
 			assert.equal(assetPath("laya.onnx"), join(dir, "laya.onnx"));
 		});
@@ -72,7 +89,7 @@ test("an explicit model directory wins over everything else", async () => {
 test("LAYA_MODEL_DIR is the fallback when the plugin's own override is unset", async () => {
 	const { dir, cleanup } = tempDir();
 	try {
-		await withEnv({ PI_TINY_BOSS_MODEL_DIR: undefined, LAYA_MODEL_DIR: dir }, async () => {
+		await withEnv({ ...emptyState(dir), LAYA_MODEL_DIR: dir }, async () => {
 			assert.equal(bundleDir(), dir);
 		});
 	} finally {
@@ -83,19 +100,57 @@ test("LAYA_MODEL_DIR is the fallback when the plugin's own override is unset", a
 test("LAYA_CACHE moves the mirrored default, and the plugin does not own it", async () => {
 	const { dir, cleanup } = tempDir();
 	try {
-		await withEnv({ LAYA_CACHE: dir, PI_TINY_BOSS_MODEL_DIR: undefined, LAYA_MODEL_DIR: undefined }, async () => {
+		await withEnv({ ...emptyState(dir), LAYA_CACHE: dir }, async () => {
 			assert.equal(layaCacheDir(), dir);
-			assert.ok(bundleDir().startsWith(dir), "the default bundle path lives under the library's cache");
+			assert.ok(mirroredBundleDir().startsWith(dir), "the mirrored path lives under the library's cache");
+			assert.equal(bundleDir(), mirroredBundleDir(), "with nothing recorded, the mirror is the answer");
 		});
 	} finally {
 		cleanup();
 	}
 });
 
+test("a recorded bundle directory beats the mirror but not an explicit override", async () => {
+	const state = tempDir();
+	const fetched = tempDir();
+	const override = tempDir();
+	try {
+		mkdirSync(state.dir, { recursive: true });
+		writeFileSync(join(state.dir, "bundle-dir.txt"), fetched.dir, "utf8");
+		await withEnv({ ...emptyState(state.dir) }, async () => {
+			assert.equal(stateDir(), state.dir);
+			// The record exists because the library owns the cache layout: it is
+			// written from the directory `ensureBundle` actually returned, so an
+			// upstream layout change cannot silently point the gate at nothing.
+			assert.equal(bundleDir(), fetched.dir, "the record retires the mirror");
+			await withEnv({ PI_TINY_BOSS_MODEL_DIR: override.dir }, async () => {
+				assert.equal(bundleDir(), override.dir, "an explicit override still wins");
+			});
+		});
+	} finally {
+		state.cleanup();
+		fetched.cleanup();
+		override.cleanup();
+	}
+});
+
+test("an empty record file falls back to the mirror instead of an empty path", async () => {
+	const state = tempDir();
+	try {
+		mkdirSync(state.dir, { recursive: true });
+		writeFileSync(join(state.dir, "bundle-dir.txt"), "\n", "utf8");
+		await withEnv({ ...emptyState(state.dir) }, async () => {
+			assert.equal(bundleDir(), mirroredBundleDir());
+		});
+	} finally {
+		state.cleanup();
+	}
+});
+
 test("an empty directory is not a cache hit", async () => {
 	const { dir, cleanup } = tempDir();
 	try {
-		await withEnv({ PI_TINY_BOSS_MODEL_DIR: dir }, async () => {
+		await withEnv({ ...emptyState(dir), PI_TINY_BOSS_MODEL_DIR: dir }, async () => {
 			assert.equal(await assetsReady(), false);
 			assert.equal(await cacheBytes(), 0);
 			const status = await assetStatus();
@@ -110,7 +165,7 @@ test("an empty directory is not a cache hit", async () => {
 test("a half-downloaded bundle is not a cache hit either", async () => {
 	const { dir, cleanup } = tempDir();
 	try {
-		await withEnv({ PI_TINY_BOSS_MODEL_DIR: dir }, async () => {
+		await withEnv({ ...emptyState(dir), PI_TINY_BOSS_MODEL_DIR: dir }, async () => {
 			// Four of five files present: the exact shape an interrupted fetch
 			// would leave if the library did not rename atomically.
 			for (const file of BUNDLE_FILES.slice(0, -1)) writeFile(file, dir);
@@ -125,7 +180,7 @@ test("a half-downloaded bundle is not a cache hit either", async () => {
 test("a complete bundle is a cache hit and reports its real size", async () => {
 	const { dir, cleanup } = tempDir();
 	try {
-		await withEnv({ PI_TINY_BOSS_MODEL_DIR: dir }, async () => {
+		await withEnv({ ...emptyState(dir), PI_TINY_BOSS_MODEL_DIR: dir }, async () => {
 			for (const file of BUNDLE_FILES) writeFile(file, dir);
 			assert.equal(await assetsReady(), true);
 			assert.equal(await cacheBytes(), BUNDLE_FILES.length * 4);

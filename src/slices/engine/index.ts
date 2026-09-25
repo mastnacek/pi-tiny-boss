@@ -10,7 +10,6 @@ export {
 	BUNDLE_FILES,
 	BUNDLE_REPO,
 	BUNDLE_BYTES_APPROX,
-	STATE_DIR,
 	assetPath,
 	assetStatus,
 	assetsReady,
@@ -18,7 +17,9 @@ export {
 	cacheBytes,
 	fetchBundle,
 	layaCacheDir,
+	mirroredBundleDir,
 	readConfigSummary,
+	stateDir,
 	type FetchProgress,
 } from "./assets.js";
 
@@ -35,7 +36,7 @@ export type EngineResolution =
 /**
  * Return the cached engine, building it on first use.
  *
- * Building is the one slow call in the plugin: an ONNX session over 1.7 GB of
+ * Building is the one slow call in the plugin: an ONNX session over 1.6 GB of
  * fp32 weights takes seconds, and it happens once per process. The duration is
  * recorded on state so `/tiny-boss status` can report it rather than leaving the
  * user to wonder why one prompt took a while.
@@ -49,7 +50,7 @@ export async function getEngine(
 	if (state.engine) return { ok: true, engine: state.engine };
 
 	if (!(await assetsReady())) {
-		const message = "Laya ONNX bundle is not cached — run /tiny-boss fetch (about 1.7 GB, once)";
+		const message = "Laya ONNX bundle is not cached — run /tiny-boss fetch (about 1.6 GB, once)";
 		recordFailure(state, "assets-missing", message);
 		return { ok: false, reason: "assets-missing", message };
 	}

@@ -70,12 +70,12 @@ export function threadCount(): number {
  * Throws `EngineUnavailableError("assets-missing")` when the bundle is not on
  * disk, which is the normal state before `/tiny-boss fetch` has ever run. The
  * check comes first because `Laya.load()` without `modelDir` would start a
- * 1.7 GB download from the prompt path.
+ * 1.6 GB download from the prompt path.
  */
 export async function createLayaEngine(): Promise<TinyEngine> {
 	if (!(await assetsReady())) {
 		throw new EngineUnavailableError(
-			"Laya ONNX bundle is not cached — run /tiny-boss fetch (about 1.7 GB, once)",
+			"Laya ONNX bundle is not cached — run /tiny-boss fetch (about 1.6 GB, once)",
 			"assets-missing",
 		);
 	}

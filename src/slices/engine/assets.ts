@@ -2,14 +2,14 @@
  * Asset acquisition for the Laya engine.
  *
  * Big difference from the needle3 version of this file: the plugin no longer
- * owns the download. `@receptron/laya` fetches its own ONNX bundle (~1.7 GB, fp32)
+ * owns the download. `@receptron/laya` fetches its own ONNX bundle (~1.6 GB, fp32)
  * into `~/.cache/receptron-laya`, and owns the layout, freshness check and
  * atomic rename. What this slice owns is the *offline gate* — proving the bundle
  * is already on disk before the prompt path is allowed to touch it.
  *
  * That gate matters more here than it did with a 36 MB WASM blob. `Laya.load()`
  * with no `modelDir` calls `ensureBundle`, which issues a HEAD request per file
- * even on a warm cache: a network round trip on the prompt path, and a 1.7 GB
+ * even on a warm cache: a network round trip on the prompt path, and a 1.6 GB
  * download if the cache is empty. So the prompt path never calls `Laya.load()`
  * without a `modelDir` that this slice has already verified. Only
  * `/tiny-boss fetch` is allowed to hit the network.
@@ -27,10 +27,16 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 
 /** Our own bookkeeping directory. The weights live in the library's cache. */
-export const STATE_DIR = join(homedir(), ".cache", "pi-tiny-boss", "laya");
+export function stateDir(): string {
+	const override = process.env.PI_TINY_BOSS_STATE_DIR;
+	if (override && override.trim().length > 0) return override.trim();
+	return join(homedir(), ".cache", "pi-tiny-boss", "laya");
+}
 
 /** Where the recorded bundle path is kept, so the mirror is only a fallback. */
-const BUNDLE_RECORD = join(STATE_DIR, "bundle-dir.txt");
+function bundleRecordPath(): string {
+	return join(stateDir(), "bundle-dir.txt");
+}
 
 /** Hugging Face repo the exported ONNX bundle is published to. */
 export const BUNDLE_REPO = "receptron/laya-onnx";
@@ -57,7 +63,7 @@ export function layaCacheDir(): string {
 }
 
 /** Where `ensureBundle` puts the English checkpoint, when nothing is recorded. */
-function defaultBundleDir(): string {
+export function mirroredBundleDir(): string {
 	return join(layaCacheDir(), BUNDLE_REPO.replace("/", "--"), BUNDLE_REVISION);
 }
 
@@ -67,13 +73,17 @@ function defaultBundleDir(): string {
  * Precedence: an explicit override, then the directory `/tiny-boss fetch`
  * recorded, then the mirrored default. An override is also the supported way to
  * point at your own `export/export_onnx.py` output.
+ *
+ * The record is what retires the mirror: it is written from the directory the
+ * library actually returned, so an upstream layout change cannot silently make
+ * the offline gate look at the wrong path.
  */
 export function bundleDir(): string {
 	const override = process.env.PI_TINY_BOSS_MODEL_DIR ?? process.env.LAYA_MODEL_DIR;
 	if (override && override.trim().length > 0) return override.trim();
-	const recorded = readFileSyncIfPresent(BUNDLE_RECORD);
+	const recorded = readFileSyncIfPresent(bundleRecordPath());
 	if (recorded) return recorded;
-	return defaultBundleDir();
+	return mirroredBundleDir();
 }
 
 /** Read a one-line marker file, or undefined when it is absent or empty. */
@@ -145,8 +155,8 @@ export async function cacheBytes(): Promise<number> {
 
 /** Remember the directory the library actually used, so the mirror is retired. */
 async function recordBundleDir(dir: string): Promise<void> {
-	await mkdir(STATE_DIR, { recursive: true });
-	await writeFile(BUNDLE_RECORD, dir, "utf8");
+	await mkdir(stateDir(), { recursive: true });
+	await writeFile(bundleRecordPath(), dir, "utf8");
 }
 
 /** Progress line for `/tiny-boss fetch`. */

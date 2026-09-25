@@ -129,7 +129,7 @@ export function registerCommands(
 						"off     disable, pass prompts through untouched",
 						"status  engine state, asset cache and the last plan's probabilities",
 						"tools   list the decision buckets and the tools they hold",
-						"fetch   download the Laya ONNX bundle, about 1.7 GB (once)",
+						"fetch   download the Laya ONNX bundle, about 1.6 GB (once)",
 						"warm    load the ONNX session now instead of on the next prompt",
 						"plan    dry-run a prompt and show the plan, changing nothing",
 					].join("\n"),
