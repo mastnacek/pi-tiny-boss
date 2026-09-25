@@ -11,7 +11,7 @@ import type { TinyBossState } from "../../shared/types.js";
 import { recordFailure } from "../../shared/state.js";
 
 /** Subcommands. Terminal rows take no trailing space; `plan` continues. */
-const TERMINAL_MODES = ["on", "off", "status", "fetch", "tools"] as const;
+const TERMINAL_MODES = ["on", "off", "status", "fetch", "warm", "tools"] as const;
 const ARGUMENT_MODES = ["plan"] as const;
 type Mode = (typeof TERMINAL_MODES)[number] | (typeof ARGUMENT_MODES)[number];
 
@@ -24,13 +24,15 @@ export function modeLabel(mode: Mode, state: TinyBossState): string {
 
 /** Everything the command handler needs, injected by the composition root. */
 export interface CommandDeps {
-	/** Download the needle3 assets into the cache. */
+	/** Download the ONNX bundle into the cache. The only network call. */
 	fetchAssets: (onProgress: (stage: string) => void) => Promise<string>;
+	/** Load the ONNX session now, instead of on the next prompt. */
+	warmEngine: () => Promise<string>;
 	/** Ask the tiny model for a plan without touching any prompt. */
 	dryRunPlan: (prompt: string) => Promise<string | null>;
 	/** Report whether assets are cached, for the status line. */
 	assetReport: () => Promise<string>;
-	/** List the system binaries needle3 is allowed to name on this machine. */
+	/** List the buckets and the tools the tiny model may name on this machine. */
 	toolReport: () => string;
 }
 
@@ -45,7 +47,7 @@ export function registerCommands(
 ): void {
 	pi.registerCommand("tiny-boss", {
 		description:
-			"needle3 (121M, local) plans your tool calls before the big model runs: on, off, status, tools, fetch, plan <prompt>",
+			"Laya (local System One) decides which tools your prompt needs before the big model runs: on, off, status, tools, fetch, warm, plan <prompt>",
 		handler: async (args: string, ctx: ExtensionContext) => {
 			const [head = "", ...rest] = args.trim().split(/\s+/);
 			const mode = head.toLowerCase();
@@ -63,15 +65,18 @@ export function registerCommands(
 				const lines = [
 					`enabled:    ${state.enabled}`,
 					`degraded:   ${state.degraded ?? "no"}`,
+					`engine:     ${state.engine ? "loaded" : "not loaded"}${state.engineLoadMs !== null ? ` (load took ${state.engineLoadMs}ms)` : ""}`,
 					`plans made: ${state.planCount}`,
 					`last run:   ${state.lastRunTimestamp ? new Date(state.lastRunTimestamp).toLocaleTimeString() : "never"}`,
 					`last error: ${state.lastError ?? "none"}`,
 					`assets:     ${assets}`,
 				];
 				if (state.lastPlan) {
-					lines.push("last plan:");
+					lines.push(`last plan (${state.lastPlan.elapsedMs}ms):`);
 					for (const [i, step] of state.lastPlan.steps.entries()) {
-						lines.push(`  ${i + 1}. ${step.tool} ${JSON.stringify(step.args)}${step.why ? ` — ${step.why}` : ""}`);
+						lines.push(
+							`  ${i + 1}. ${step.tool} [${step.category ?? "?"}] p=${step.toolProbability ?? 0} gate=${step.gateProbability ?? 0}`,
+						);
 					}
 				}
 				ctx.ui.notify?.(lines.join("\n"));
@@ -89,6 +94,13 @@ export function registerCommands(
 					recordFailure(state, "assets-missing", message);
 					ctx.ui.notify?.(`tiny-boss: fetch failed — ${message}`);
 				}
+				return;
+			}
+
+			if (mode === "warm") {
+				ctx.ui.notify?.("tiny-boss: loading the ONNX session…");
+				const summary = await deps.warmEngine();
+				ctx.ui.notify?.(summary);
 				return;
 			}
 
@@ -111,13 +123,14 @@ export function registerCommands(
 			if (mode === "" || isMode(mode)) {
 				ctx.ui.notify?.(
 					[
-						"tiny-boss — needle3 plans, the big model obeys (or politely ignores)",
+						"tiny-boss — Laya decides, the big model obeys (or politely ignores)",
 						"",
 						"on      enable planning on every prompt",
 						"off     disable, pass prompts through untouched",
-						"status  show engine state, asset cache and the last plan",
-						"tools   list the system binaries needle3 may name here",
-						"fetch   download the ~36 MB needle3 assets (once)",
+						"status  engine state, asset cache and the last plan's probabilities",
+						"tools   list the decision buckets and the tools they hold",
+						"fetch   download the Laya ONNX bundle, about 1.7 GB (once)",
+						"warm    load the ONNX session now instead of on the next prompt",
 						"plan    dry-run a prompt and show the plan, changing nothing",
 					].join("\n"),
 				);

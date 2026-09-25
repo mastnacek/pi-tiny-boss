@@ -11,6 +11,7 @@ test("toggles carry the live state marker, plain rows do not", () => {
 	assert.equal(modeLabel("off", on), "off");
 	assert.equal(modeLabel("status", on), "status");
 	assert.equal(modeLabel("fetch", on), "fetch");
+	assert.equal(modeLabel("warm", on), "warm");
 	assert.equal(modeLabel("plan", on), "plan");
 
 	const off = createInitialState();
@@ -19,13 +20,16 @@ test("toggles carry the live state marker, plain rows do not", () => {
 	assert.equal(modeLabel("on", off), "on");
 });
 
-test("the manifest stays short and starts with the no-tool escape hatch", () => {
+test("the manifest is small, bucketed and describes every tool", () => {
 	const tools = manifestTools();
-	assert.ok(tools.length <= 8, "needle3 degrades on long manifests");
-	assert.equal(tools[0].name, "none");
+	// The list stays short on purpose: Laya's own model card puts the reliability
+	// ceiling near twenty options, and the decision schema splits it into buckets.
+	assert.ok(tools.length <= 8, "the built-in manifest must stay short");
+	assert.ok(!tools.some((t) => t.name === "none"), "Laya's per-bucket gates replaced the `none` tool");
 	for (const tool of tools) {
 		assert.ok(tool.description.length > 10, `${tool.name} needs a usable description`);
 		assert.ok(tool.description.length < 200, `${tool.name} description must stay terse`);
+		assert.ok(tool.category, `${tool.name} needs a bucket`);
 	}
 });
 
@@ -36,7 +40,8 @@ test("the allowed-name set matches the manifest exactly", () => {
 		manifestTools().map((t) => t.name).sort(),
 	);
 	assert.ok(allowed.has("bash"));
-	assert.ok(!allowed.has("task"), "delegating tools are out of scope for a 121M planner");
+	assert.ok(!allowed.has("none"), "a tool named `none` is what the gates replaced");
+	assert.ok(!allowed.has("task"), "delegating tools are out of scope for a local planner");
 });
 
 test("a successful plan clears any latched degradation", () => {

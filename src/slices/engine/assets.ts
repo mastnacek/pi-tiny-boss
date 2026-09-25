@@ -1,27 +1,95 @@
 /**
- * Asset acquisition for the needle3 engine.
+ * Asset acquisition for the Laya engine.
  *
- * Three files, ~36 MB, fetched once from Hugging Face and then cached forever.
- * Nothing here runs on the prompt path — `/tiny-boss fetch` warms the cache, and
- * the hook only ever checks that the cache is already populated.
+ * Big difference from the needle3 version of this file: the plugin no longer
+ * owns the download. `@receptron/laya` fetches its own ONNX bundle (~1.7 GB, fp32)
+ * into `~/.cache/receptron-laya`, and owns the layout, freshness check and
+ * atomic rename. What this slice owns is the *offline gate* — proving the bundle
+ * is already on disk before the prompt path is allowed to touch it.
+ *
+ * That gate matters more here than it did with a 36 MB WASM blob. `Laya.load()`
+ * with no `modelDir` calls `ensureBundle`, which issues a HEAD request per file
+ * even on a warm cache: a network round trip on the prompt path, and a 1.7 GB
+ * download if the cache is empty. So the prompt path never calls `Laya.load()`
+ * without a `modelDir` that this slice has already verified. Only
+ * `/tiny-boss fetch` is allowed to hit the network.
+ *
+ * The bundle directory has to be derivable without importing the package
+ * (`import "@receptron/laya"` pulls in `onnxruntime-node` and its native
+ * binding), so the default layout is mirrored below and `/tiny-boss fetch`
+ * records the directory the library actually returned. The mirror is a
+ * fallback, not the source of truth.
  */
 
 import { mkdir, writeFile, readFile, access, constants, stat } from "node:fs/promises";
-import { join, dirname } from "node:path";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { homedir } from "node:os";
 
-const HF = "https://huggingface.co/Cactus-Compute/needle3/resolve/main";
+/** Our own bookkeeping directory. The weights live in the library's cache. */
+export const STATE_DIR = join(homedir(), ".cache", "pi-tiny-boss", "laya");
 
-export const CACHE_DIR = join(homedir(), ".cache", "pi-tiny-boss", "needle");
+/** Where the recorded bundle path is kept, so the mirror is only a fallback. */
+const BUNDLE_RECORD = join(STATE_DIR, "bundle-dir.txt");
 
-export const ASSETS = [
-	{ name: "model", url: `${HF}/needle3.cact`, file: "needle3.cact", bytes: 35 * 1024 * 1024 },
-	{ name: "wasm", url: `${HF}/wasm/needle.wasm`, file: "needle.wasm", bytes: 1024 * 1024 },
-	{ name: "js", url: `${HF}/wasm/needle.js`, file: "needle.js", bytes: 60 * 1024 },
+/** Hugging Face repo the exported ONNX bundle is published to. */
+export const BUNDLE_REPO = "receptron/laya-onnx";
+
+/** Revision, and the subfolder that mirrors `@receptron/laya`'s `ensureBundle`. */
+export const BUNDLE_REVISION = "main";
+
+/** The five files one exported checkpoint consists of. */
+export const BUNDLE_FILES = [
+	"laya.onnx",
+	"laya.onnx.data",
+	"laya_config.json",
+	"tokenizer/tokenizer.json",
+	"tokenizer/tokenizer_config.json",
 ] as const;
 
+/** Rough download size, for `/tiny-boss fetch` — fp32, so it is not small. */
+export const BUNDLE_BYTES_APPROX = 1_700_000_000;
+
+/** The library's own cache root, mirrored without importing it. */
+export function layaCacheDir(): string {
+	const base = process.env.XDG_CACHE_HOME ?? join(homedir(), ".cache");
+	return process.env.LAYA_CACHE ?? join(base, "receptron-laya");
+}
+
+/** Where `ensureBundle` puts the English checkpoint, when nothing is recorded. */
+function defaultBundleDir(): string {
+	return join(layaCacheDir(), BUNDLE_REPO.replace("/", "--"), BUNDLE_REVISION);
+}
+
+/**
+ * The bundle directory to load from.
+ *
+ * Precedence: an explicit override, then the directory `/tiny-boss fetch`
+ * recorded, then the mirrored default. An override is also the supported way to
+ * point at your own `export/export_onnx.py` output.
+ */
+export function bundleDir(): string {
+	const override = process.env.PI_TINY_BOSS_MODEL_DIR ?? process.env.LAYA_MODEL_DIR;
+	if (override && override.trim().length > 0) return override.trim();
+	const recorded = readFileSyncIfPresent(BUNDLE_RECORD);
+	if (recorded) return recorded;
+	return defaultBundleDir();
+}
+
+/** Read a one-line marker file, or undefined when it is absent or empty. */
+function readFileSyncIfPresent(path: string): string | undefined {
+	// Synchronous on purpose: the status command calls `bundleDir` and must not
+	// become async just to read a few bytes.
+	try {
+		const text = readFileSync(path, "utf8").trim();
+		return text.length > 0 ? text : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
 export function assetPath(file: string): string {
-	return join(CACHE_DIR, file);
+	return join(bundleDir(), file);
 }
 
 async function exists(path: string): Promise<boolean> {
@@ -43,8 +111,8 @@ export interface AssetStatus {
 
 export async function assetStatus(): Promise<AssetStatus[]> {
 	const out: AssetStatus[] = [];
-	for (const asset of ASSETS) {
-		const path = assetPath(asset.file);
+	for (const file of BUNDLE_FILES) {
+		const path = assetPath(file);
 		let bytes = 0;
 		if (await exists(path)) {
 			try {
@@ -53,50 +121,81 @@ export async function assetStatus(): Promise<AssetStatus[]> {
 				bytes = 0;
 			}
 		}
-		out.push({ name: asset.name, file: asset.file, present: bytes > 0, bytes });
+		out.push({ name: file, file, present: bytes > 0, bytes });
 	}
 	return out;
 }
 
-/** True only when every asset is on disk. A half-download is not a cache hit. */
+/**
+ * True only when every bundle file is on disk.
+ *
+ * A half-download is not a cache hit: `ensureBundle` writes to `.part-<pid>`
+ * and renames, so a partial file under the real name means the cache was
+ * tampered with or truncated, and loading from it would fail deep inside ONNX.
+ */
 export async function assetsReady(): Promise<boolean> {
 	const status = await assetStatus();
 	return status.every((a) => a.present);
 }
 
-/** Stream one URL to disk, reporting progress as a 0..1 fraction. */
-export async function downloadAsset(
-	url: string,
-	dest: string,
-	onProgress?: (fraction: number) => void,
-): Promise<number> {
-	await mkdir(dirname(dest), { recursive: true });
-	const res = await fetch(url);
-	if (!res.ok || !res.body) {
-		throw new Error(`download failed: ${res.status} ${res.statusText} for ${url}`);
-	}
-	const total = Number(res.headers.get("content-length") ?? "0");
-	const chunks: Uint8Array[] = [];
-	let received = 0;
-	const reader = res.body.getReader();
-	while (true) {
-		const { done, value } = await reader.read();
-		if (done) break;
-		chunks.push(value);
-		received += value.length;
-		if (total > 0) onProgress?.(received / total);
-	}
-	const buffer = new Uint8Array(received);
-	let offset = 0;
-	for (const chunk of chunks) {
-		buffer.set(chunk, offset);
-		offset += chunk.length;
-	}
-	await writeFile(dest, buffer);
-	return received;
+/** Total bytes currently on disk, for `/tiny-boss status`. */
+export async function cacheBytes(): Promise<number> {
+	return (await assetStatus()).reduce((sum, a) => sum + a.bytes, 0);
 }
 
-/** Read the model bytes. Kept separate so the loader can stream-hash later. */
-export async function readModelBytes(): Promise<Uint8Array> {
-	return new Uint8Array(await readFile(assetPath("needle3.cact")));
+/** Remember the directory the library actually used, so the mirror is retired. */
+async function recordBundleDir(dir: string): Promise<void> {
+	await mkdir(STATE_DIR, { recursive: true });
+	await writeFile(BUNDLE_RECORD, dir, "utf8");
+}
+
+/** Progress line for `/tiny-boss fetch`. */
+export interface FetchProgress {
+	file: string;
+	received: number;
+	total: number | null;
+}
+
+/**
+ * Download the ONNX bundle, once.
+ *
+ * This is the only function in the plugin allowed to touch the network, and it
+ * is reached only from `/tiny-boss fetch`. The package is imported dynamically
+ * so that a machine without a working `onnxruntime-node` binding can still load
+ * the extension and report the problem, instead of failing at import time.
+ */
+export async function fetchBundle(
+	onProgress?: (progress: FetchProgress) => void,
+): Promise<{ dir: string; resumed: boolean }> {
+	const wasReady = await assetsReady();
+	// SAFETY: the package exports `ensureBundle`, but its declared return type also
+	// carries Hugging Face download options this plugin never passes and a
+	// `BUNDLE_FILES` constant that is read from disk instead (see the note at the
+	// top of this file). Only `repo`, `revision` and `onProgress` are relied on, and
+	// a change to any of them fails loudly at the first `/tiny-boss fetch`.
+	const mod = (await import("@receptron/laya")) as unknown as {
+		ensureBundle: (opts?: {
+			repo?: string;
+			revision?: string;
+			onProgress?: (info: { file: string; received: number; total: number | null }) => void;
+		}) => Promise<string>;
+	};
+	const dir = await mod.ensureBundle({
+		repo: BUNDLE_REPO,
+		revision: BUNDLE_REVISION,
+		onProgress: onProgress ? (info) => onProgress(info) : undefined,
+	});
+	await recordBundleDir(dir);
+	return { dir, resumed: wasReady };
+}
+
+/** Read the Laya config next to the bundle, for `/tiny-boss status`. */
+export async function readConfigSummary(): Promise<string> {
+	try {
+		const raw = await readFile(assetPath("laya_config.json"), "utf8");
+		const config = JSON.parse(raw) as { max_len?: number; head_max_len?: number };
+		return `max_len=${config.max_len ?? "?"} head_max_len=${config.head_max_len ?? "?"}`;
+	} catch {
+		return "config unreadable";
+	}
 }

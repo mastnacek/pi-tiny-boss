@@ -1,13 +1,17 @@
 {
   "name": "pi-tiny-boss",
-  "version": "0.1.0",
-  "description": "A 121M-parameter local model picks your tools before the big one does. needle3 reads your prompt, emits a tool plan, and the frontier model is handed the plan instead of the guesswork. Fully offline, zero API cost, hilariously overkill.",
+  "version": "0.2.0",
+  "description": "A local System One decision model picks your tools before the big one does. Laya scores typed need questions about your prompt and the frontier model is handed the resulting tool plan instead of the guesswork. Fully offline, zero API cost.",
   "type": "module",
   "main": "./index.ts",
   "keywords": [
     "pi",
     "pi-package",
-    "pi-extension"
+    "pi-extension",
+    "laya",
+    "system-one",
+    "decision-model",
+    "onnx"
   ],
   "author": "mastnacek",
   "license": "MIT",
@@ -34,8 +38,10 @@
   "scripts": {
     "check": "tsc --noEmit",
     "test": "npx tsx --test test/**/*.test.js",
-    "eval": "npx tsx eval/accuracy.ts && npx tsx eval/report.ts",
-    "eval:fresh": "npx tsx eval/fresh-engine.ts",
+    "eval": "npx tsx eval/accuracy.ts && npx tsx eval/gates.ts && npx tsx eval/report.ts",
     "eval:report": "npx tsx eval/report.ts"
+  },
+  "dependencies": {
+    "@receptron/laya": "^0.1.2"
   }
 }

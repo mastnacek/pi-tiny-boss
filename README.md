@@ -1,26 +1,96 @@
 # pi-tiny-boss
 
-**A 121M-parameter model picks your tools before the big one does.**
+**A local System One decision model picks your tools before the big one does.**
 
-`needle3` — a 2-bit, 8–29 MB tool-calling model from Cactus Compute — reads your
-prompt on the `input` hook, emits a short ordered tool plan, and the frontier
-model is handed that plan instead of being left to guess. It runs entirely
-offline, costs nothing per call, and is hilariously small.
+Laya — a non-autoregressive decision model from Convai Innovations (Apache 2.0,
+421M parameters for the English checkpoint) — reads your prompt on the `input`
+hook, scores a short set of typed questions about which *kinds* of work it needs,
+and the frontier model is handed the resulting tool plan instead of being left to
+guess. It runs entirely offline through ONNX Runtime, costs nothing per call, and
+never generates a token.
 
-It cannot write your code. It can tell the big model which three tools to reach
-for first.
+It cannot write your code and it cannot read your repository. It can tell the big
+model which tools to reach for first.
 
-## Why this is a real idea
+> **The name is now a misnomer.** 0.1.0 ran `needle3`, a 121M model at 2 bits in
+> 36 MB. Laya is 421M and its ONNX bundle is about **1.7 GB**. The package name,
+> the `/tiny-boss` command and the `tiny_boss` tool kept their names on purpose:
+> they are the install identity and the muscle memory attached to it. Renaming
+> them would break every install record for a cosmetic gain, so the size is
+> stated here instead of hidden behind a new name.
 
-A frontier model spends most of its reasoning budget rediscovering the shape of
-a problem before it touches anything. A 121M tool-calling model answers exactly
-one narrow question — *given this request, which tools, in what order* — in
-milliseconds, for free, with no data leaving the machine. The expensive model
-starts from a plan instead of from nothing.
+## Why the engine changed
 
-The plan is **advisory**. The injected block tells the coding model it may
-deviate and say why. A 121M model is wrong often enough that pretending
-otherwise would be malpractice.
+`needle3` was measured, and it did not work. From `npm run eval` on 34 labelled
+prompts:
+
+```
+ACCURACY   7/34  =  21%
+ERRORS    20/34  =  59%   needle_complete: tool call truncated: token budget exhausted
+CONFIDENCE  mean 0.77 on all replies vs 0.73 on the wrong ones — not calibrated
+```
+
+| Category | Score |
+| --- | --- |
+| discussion (correct answer: nothing) | 3/12 |
+| search | 2/7 |
+| read | 2/4 |
+| execute | 0/8 |
+| edit | 0/3 |
+
+Three findings killed it, and all three are in the git history rather than
+forgotten:
+
+1. **The token budget was not the lever.** 1024, 2048 and 4096 produced
+   byte-identical replies; truncation was deterministic per prompt. A 2-bit
+   generative model could not close a JSON array.
+2. **A long session decayed into `none`.** The same prompt returned "no tools" every
+   time after ~30 prior calls, whatever it said.
+3. **Confidence was worse than useless** — higher on wrong answers than on right
+   ones, which is why the old directive deliberately hid the number.
+
+Laya removes all three by construction. It generates nothing, so there is nothing
+to truncate. It is stateless per call. And its probabilities come from RLCD
+training against strictly proper scoring rules, so they are *meant* to mean
+something — with a documented caveat (below) that raw calibration is poor until
+temperature-fitted on your own data.
+
+## Why this needed a different design, not a port
+
+You cannot swap the model and keep the schema:
+
+- **Laya cannot emit a tool list.** It scores a fixed set of options per question.
+  The question *is* the schema, so the old "ask for a JSON array of tool names"
+  shape has no equivalent.
+- **Option sets share a fixed budget.** Every question's options must fit inside
+  `head_max_len` — 192 tokens on the English checkpoint — and the ONNX port throws
+  rather than truncating. A full description per option overflows it.
+- **Accuracy falls off past ~20 options.** Laya's own model card reports 0.870 on
+  72 Banking77 labels and 0.425 on 77. A typical machine here has 22 tools, so one
+  flat "which tool" question is exactly the shape the card warns about.
+- **Laya has no way to order its answer.** The old model emitted a sequence.
+
+So the plan is assembled from **two coarse-to-fine passes** in the prompt's
+language rather than the model's:
+
+```
+pass 1   one forward pass, 1 + N questions
+  first       one choice over the six buckets — which need comes first
+  need_<cat>  one two-option choice per bucket — is this need present at all
+
+pass 2   one forward pass, only the buckets pass 1 kept
+  tool_<cat>  one choice over that bucket's own tools, never more than seven
+```
+
+Every option set stays at seven or below, ordering comes from pass 1 instead of
+from the model, and the independent yes/no gates replace the `none` tool that
+needle3 needed because it could not say "no tool". Pass 1's six gates all share
+one forward pass, so a whole plan costs two passes.
+
+The gates are deliberately **two-option `choice` questions with neutral `A` / `B`
+keys**, not Laya's `noul` primitive. `noul` renders its options as `false:` /
+`true:` and on this checkpoint can follow those labels instead of the state; the
+model card's own remedy is exactly the A/B choice form used here.
 
 ## Install
 
@@ -31,12 +101,16 @@ pi install git:github.com/mastnacek/pi-tiny-boss
 Then, once per machine:
 
 ```
-/tiny-boss fetch      # downloads ~36 MB into ~/.cache/pi-tiny-boss/needle/
-/tiny-boss status     # confirms the cache and shows the last plan
+/tiny-boss fetch      # downloads ~1.7 GB of ONNX weights into ~/.cache/receptron-laya
+/tiny-boss warm       # loads the ONNX session now, so the next prompt does not pay for it
+/tiny-boss status     # confirms the cache, the engine and the last plan
 ```
 
 Until `fetch` has run, the plugin latches into a degraded state and passes every
-prompt through untouched. It never downloads on the prompt path.
+prompt through untouched. It never downloads on the prompt path — not even a HEAD
+request: `assetsReady()` is verified from disk before `Laya.load()` is called with
+an explicit `modelDir`, because the library's own `ensureBundle` re-checks each
+file against Hugging Face even on a warm cache.
 
 ## Commands
 
@@ -44,129 +118,101 @@ prompt through untouched. It never downloads on the prompt path.
 | --- | --- |
 | `/tiny-boss on` | plan every prompt (default) |
 | `/tiny-boss off` | pass prompts through untouched |
-| `/tiny-boss status` | engine state, asset cache, last plan, last error |
-| `/tiny-boss tools` | list the system binaries needle3 may name on this machine |
-| `/tiny-boss fetch` | download the needle3 assets (once) |
+| `/tiny-boss status` | engine state, cache size, last plan with its per-step probabilities |
+| `/tiny-boss tools` | the decision buckets and which tools are in them here |
+| `/tiny-boss fetch` | download the ONNX bundle (once, ~1.7 GB) |
+| `/tiny-boss warm` | load the ONNX session now instead of on the next prompt |
 | `/tiny-boss plan <prompt>` | dry run: show the plan, change nothing |
 
-The model can also call the `tiny_boss` tool mid-turn to ask for a plan after
-the hook has already passed — useful when a turn turns out to need different
-tools than the opening prompt suggested.
+The model can also call the `tiny_boss` tool mid-turn to ask for a plan after the
+hook has already passed — useful when a turn turns out to need different tools than
+the opening prompt suggested.
+
+## The decision buckets
+
+Buckets exist because Laya degrades on large option sets. The built-ins and every
+catalogue binary are assigned explicitly (`ToolSpec.category`), and a user tool
+with no category lands in `search` rather than becoming invisible.
+
+| Bucket | Holds | Asked |
+| --- | --- | --- |
+| `search` | grep, find, ls, rg, fd, sg, zoxide | *find code or files by pattern* |
+| `read` | read, bat | *read a file I can name* |
+| `edit` | edit, write, sd | *change or create code* |
+| `execute` | bash, just, uv, hyperfine | *run a command, test or build* |
+| `vcs` | gh, delta, difft | *git, branches, PRs and diffs* |
+| `data` | jq, yq, sqlite3 | *query JSON or YAML* |
+
+Only binaries actually present on your PATH join a bucket. `short` on each spec is
+the option text Laya scores — a few words, not the full description, because the
+full one overflows the budget.
 
 ## What gets injected
 
+Real output from `assembleSteps` + `renderDirective`:
+
 ```
 <tiny-boss-plan>
-A 121M local model (needle3) planned this before you woke up. It costs nothing
-and runs offline, but it is small and it is sometimes wrong.
+Laya, a local System One decision model (2 forward passes, 78 ms,
+offline, no API key), scored 3 candidate need(s) and kept these.
+The probabilities are raw and not temperature-fitted on your data.
 
-1. grep {"pattern":"pi.on\\("} — find the lifecycle subscriptions
-2. read {"path":"src/slices/hook/index.ts"} — confirm they are drained
+1. bash {"command":"rg -n --type ts \"pattern\" ."} (via rg, p=0.74)
+2. read (p=0.91)
+3. edit (p=0.88)
 
-Use this plan as a strong hint, not an order. If a step is wrong or the work needs
-a different approach, deviate and say why in one sentence.
+Use a tool only if it fits the work. Laya decides which kind of need exists
+first; it does not read files and it cannot see the repository. If a step is
+wrong, skip it and say why in one sentence.
 </tiny-boss-plan>
 
 <your original prompt, verbatim>
 ```
 
+A detected binary is named by the model (`rg`) but must be run through `bash`, so
+the line shows the real invocation and names the binary it came from. A plan the
+coding model cannot execute would be worse than no plan.
+
+## Probabilities are shown now, and here is why
+
+The old plugin hid needle3's confidence because it was anti-correlated with being
+right. Laya's is not — its `confidence` reaches an AUROC of 0.77 on labelled
+decision items, and `rl_agent.act_probability` is the field that carries no signal
+(it reads 1.0 for almost everything, and the model card says so). This plugin
+therefore reads `confidence` and the per-option probabilities, never
+`act_probability`.
+
+Two floors decide whether a bucket survives:
+
+| Constant | Default | Meaning |
+| --- | --- | --- |
+| `MIN_GATE_PROBABILITY` | 0.5 | P(this need exists) before the bucket is kept |
+| `MIN_TOOL_PROBABILITY` | 0.34 | P(this tool over its siblings) before the step is emitted |
+
+**Both are conservative defaults, not measured optima.** The English checkpoint
+ships over-confident — its card reports mean ECE 0.466 before temperature fitting
+and 0.081 after, per question type and option count (`laya`) — so a bucket that
+merely leans yes is enough, and a diffuse tool choice inside a bucket is dropped
+rather than forwarded as a recommendation. `eval/gates.ts` sweeps 0.5 → 0.9 and
+prints precision and recall at each, and `/tiny-boss status` prints the last
+plan's probabilities, so both numbers are visible while you tune them.
+
 ## Design rules, enforced by tests
 
-1. **Never throw.** A broken tiny model must not break the session. Every failure
-   path returns `{ action: "continue" }`.
-2. **Never block.** The planning budget is 4 s; past that the prompt goes through
-   untouched.
+1. **Never throw.** A broken decision model must not break the session. Every
+   failure path returns `{ action: "continue" }`.
+2. **Never block past the budget.** Both Laya passes share one 4 s budget. The one
+   exception is the session load, which happens once per process and is reported
+   as `engineLoadMs` in `/tiny-boss status` rather than hidden.
 3. **Never retry a latched failure.** Missing assets cost one failed call, not one
-   per turn. `/tiny-boss fetch` clears the latch.
-4. **Never plan a slash command or a message under 24 characters.** A 121M model
+   per turn. `/tiny-boss fetch` or `/tiny-boss on` clears the latch.
+4. **Never plan a slash command or a message under 24 characters.** A small model
    will answer a two-word prompt confidently, and that answer is noise.
-5. **Validate every tool name** against the manifest. A hallucinated tool is
-   dropped, not forwarded.
-6. **Cap the plan at six steps** and truncate the rationale at 240 characters.
+5. **Validate every answer** against the bucket it was asked about. A tool name
+   outside its own bucket is dropped, not forwarded.
+6. **Cap the plan at six steps** — which the six buckets make structural.
 7. **Never shadow a built-in.** Extras merge only into free names.
-
-## It knows about your machine, not just pi's tools
-
-Pi exposes no tool registry to extensions, and its built-ins are deliberately
-generic. So the plugin **probes your PATH** at load and adds every binary worth
-naming to the manifest — ripgrep, fd, bat, jq, yq, sd, difftastic, git-delta,
-hyperfine, zoxide, just, gh, uv, sqlite3 and more. On the machine this was built
-on that is 14 detected binaries, giving needle3 a 22-tool manifest.
-
-A binary is not a pi tool, so the plan renderer translates it:
-
-```
-1. bash {"command":"rg -n --type ts \"pi.on\\(\" ."} (via rg) — find the listeners
-```
-
-needle3 names the *binary* it wants; the model receives a command it can
-actually run. A plan the coding model cannot execute would be worse than no
-plan, so the translation is not optional.
-
-Add your own with `~/.pi/agent/pi-tiny-boss.tools.json`:
-
-```json
-{
-  "tools": [
-    { "name": "mytool", "description": "What it is for and when to reach for it." }
-  ]
-}
-```
-
-A malformed file yields an empty list — bad config never breaks the hook.
-Built-in tools always win a name clash, so a config cannot shadow the real
-`read`.
-
-## Measured quality — read this before enabling it
-
-Reproduce with `npm run eval` (34 labelled prompts, 5 repeats, 11 short-input
-probes) and `npm run eval:fresh` (fresh engine per prompt, budget sweep).
-
-**The plumbing is verified against the real model.** ~230–2100 ms per call, and
-the ABI is correct. What the evaluation shows is that the model is not useful.
-
-```
-ACCURACY   7/34  =  21%
-ERRORS    20/34  =  59%   needle_complete: tool call truncated: token budget exhausted
-CONFIDENCE  mean 0.77 on all replies vs 0.73 on the wrong ones — not calibrated
-```
-
-| Category | Score |
-| --- | --- |
-| discussion (correct answer: `none`) | 3/12 |
-| search | 2/7 |
-| read | 2/4 |
-| execute | 0/8 |
-| edit | 0/3 |
-
-Three findings that no single demo would have shown:
-
-**1. The token budget is not the lever.** 1024, 2048 and 4096 give byte-identical
-replies, and truncation is deterministic per prompt — the same prompt truncates
-in every fresh engine, at every budget. An earlier claim in this README that a
-larger budget fixed truncation was wrong, and the eval harness is what caught it.
-
-**2. A long session decays into `none`.** Calling the same prompt five times in a
-row after ~30 prior calls returns `none` every time, whatever the prompt. So the
-engine is stateful and slowly degenerates, which also means single-prompt demos
-are optimistic relative to a real session.
-
-**3. Confidence is worse than useless.** The model reports `0.97` for "what is the
-capital of France?" and `0.98` for `!!!!` while producing nothing, and its mean
-confidence is *higher* on wrong answers than on all replies. A confident wrong
-prior is more dangerous than a vague one, so the plan text deliberately does not
-surface the number.
-
-**Recommended use: `/tiny-boss off`.** The 24-character gate in the hook is what
-actually protects a session — 11/11 short or garbage inputs still produced a plan,
-every one of them `none`, so the character count, not the model's judgement, is
-doing the work.
-
-What needle3 demonstrably *is* good at is what `pi-architecture-watcher` already
-uses it for: one label from a small fixed set. Open-ended selection among 22
-options, with ordering, is past what 121M parameters at 2-bit can do. If you want
-a tiny local model in your workflow, that shape — fixed label set, one decision —
-is the shape that works.
+8. **Every option set stays at seven or fewer.** A test fails if a bucket grows.
 
 ## Architecture
 
@@ -174,37 +220,75 @@ Vertical slices, one dependency direction:
 
 ```
 index.ts                 composition root — the only multi-slice importer
-├── slices/engine/       needle3 WASM: download, init, one-shot completion
-├── slices/planner/      schema validation + prompt rendering (pure)
-├── slices/discovery/    PATH probe -> ToolSpec the tiny model may name
+├── slices/engine/       Laya ONNX session, offline cache gate, fetch
+├── slices/planner/      two-pass policy, validation, prompt rendering (pure)
+├── slices/discovery/    PATH probe -> ToolSpec the decision model may name
 ├── slices/hook/         the `input` listener, planner injected
 ├── slices/commands/     /tiny-boss, dependencies injected
 ├── slices/tools/        the tiny_boss tool, dependencies injected
-└── shared/              types, state, tool manifest, plan schema
+└── shared/              types, state, manifest, decision schema
 ```
 
-The engine is reached only through the `TinyEngine` interface, so the whole test
-suite runs against a fake and never touches WASM. 23 tests, no model download.
+The engine is reached only through the `TinyEngine` interface — one `ask(state,
+questions)` method — so the whole test suite runs against a fake and never
+downloads 1.7 GB. `shared/types.ts` declares Laya's question and answer shapes
+structurally and `slices/engine/laya.ts` is the single place that casts to the real
+ones, which keeps every other slice and every test independent of a native
+dependency being loadable. 61 tests, no model download.
+
+## Measured quality
+
+**Not measured yet, and that is deliberate.** The previous numbers in this README
+were real, produced by the harness, and they are the reason the engine changed.
+No Laya numbers are claimed here because none have been run: the harness needs a
+1.7 GB download and roughly 2 GB of RAM.
+
+```bash
+npm run eval          # writes eval/out.json, scores it, writes eval/gates.json
+```
+
+Two things worth knowing before you trust it:
+
+- **The base English checkpoint is near chance on typed decisions zero-shot** —
+  0.362 accuracy in its own card, against a 0.461 majority-class baseline, versus
+  0.766 for a checkpoint fine-tuned on that benchmark's training split. Laya is a
+  fast base to specialise, not an out-of-the-box decision engine, and this plugin
+  uses the base checkpoint as shipped.
+- **What Laya is genuinely good at is the shape this plugin uses**: a fixed,
+  small option set and one decision per question, batched. The old README's own
+  conclusion — *"the shape that works is a fixed label set, one decision"* — is the
+  shape the gate design is built from.
 
 ## Honest limitations
 
-- **The manifest is curated, not discovered from pi.** Pi does not expose the live tool
-  registry to extensions, so the built-in eight are hand-written and the rest is
-  discovered from your own PATH. needle3 degrades badly on long manifests, so
-  the catalogue is deliberately short.
-- **A binary is named, not called.** Every detected tool renders as a `bash`
-  command. That is honest but it means the model gets a *suggested* invocation,
-  not an executed one.
+- **About 1.7 GB of weights and 2 GB of RAM.** fp32 ONNX, no quantised bundle
+  published. The one-time session load is seconds, not milliseconds.
+- **The prompt is truncated at 512 tokens** for the English checkpoint, after the
+  question header. Laya sees the opening of a long prompt, not all of it.
+- **English only.** The multilingual checkpoint (`laya-multilingual`, 322M, 1024
+  to 8192 context) exists but is not wired up; `/tiny-boss fetch` pulls the English
+  bundle.
+- **No arguments are proposed.** Laya picks tools, not invocations. Everything
+  renders as a bare tool name except the catalogue binaries, which carry a
+  ready-made example command.
 - **One plan per prompt.** The `input` hook sees the opening prompt; it does not
   re-plan when a turn changes shape. That is what the `tiny_boss` tool is for.
+- **Buckets are curated, not discovered from pi.** Pi does not expose the live tool
+  registry to extensions, so the built-in seven are hand-written and the rest is
+  probed from your own PATH.
+- **The plugin does not own the weight cache.** `@receptron/laya` owns the layout
+  and the freshness check; this plugin mirrors the path so the offline gate can run
+  without importing a native module, and records the real directory on `fetch`.
+  `PI_TINY_BOSS_MODEL_DIR` / `LAYA_MODEL_DIR` overrides any of it — that is also
+  the supported way to point at your own `export/export_onnx.py` output.
 - **Subagent sessions are skipped** by design — a delegation guard keeps child
   sessions from double-planning.
-- **Quality is genuinely poor.** Treat the plan as a cheap prior, and measure.
-  The whole point of the experiment is to find out whether the prior is worth
-  anything; run it against real tasks before trusting it.
 
 ## Credits
 
-- [Cactus Compute](https://cactuscompute.com/needle) — needle3
-- The WASM asset URLs and the `_needle_init` / `_needle_complete` C ABI follow the
-  integration already proven in `pi-architecture-watcher`.
+- [Laya](https://github.com/NandhaKishorM/laya) — Convai Innovations, Apache 2.0
+  weights, non-autoregressive System One decisions.
+- [`@receptron/laya`](https://github.com/receptron/laya) — MIT, the Node/ONNX port
+  this plugin runs.
+- [Cactus Compute](https://cactuscompute.com/needle) — needle3, the engine this
+  replaced, with the measured failure that justified the switch.

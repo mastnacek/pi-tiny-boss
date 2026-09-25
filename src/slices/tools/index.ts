@@ -17,7 +17,7 @@ const ModeSchema = StringEnum(["plan", "tools"] as const);
 export interface ToolDeps {
 	/** Run the tiny model against a prompt and return the rendered plan. */
 	dryRunPlan: (prompt: string) => Promise<string | null>;
-	/** Render the tool manifest the tiny model is allowed to name. */
+	/** Render the buckets and tools the tiny model is allowed to name. */
 	describeTools: () => string;
 }
 
@@ -26,8 +26,8 @@ export function registerTools(pi: ExtensionAPI, state: TinyBossState, deps: Tool
 		name: "tiny_boss",
 		label: "Tiny Boss",
 		description:
-			"Ask the local 121M needle3 model which tools to use for a request, or list the tools it may name. Free and offline, but small — treat the answer as a hint.",
-		promptSnippet: "tiny_boss(mode, prompt) — cheap local tool planning via needle3",
+			"Ask the local Laya decision model which tools a request needs, or list the decision buckets it may choose from. Offline and free, but it never reads files — treat the answer as a hint.",
+		promptSnippet: "tiny_boss(mode, prompt) — cheap local tool planning via Laya",
 		parameters: Type.Object({
 			mode: ModeSchema,
 			prompt: Type.Optional(Type.String({ description: "The request to plan. Required for mode=plan." })),
@@ -49,7 +49,7 @@ export function registerTools(pi: ExtensionAPI, state: TinyBossState, deps: Tool
 			const rendered = await deps.dryRunPlan(prompt);
 			if (!rendered) {
 				throw new Error(
-					"needle3 produced no usable plan. Run /tiny-boss fetch if the assets are missing, or /tiny-boss status to see why.",
+					"Laya produced no usable plan. Run /tiny-boss fetch if the ONNX bundle is missing, or /tiny-boss status to see why.",
 				);
 			}
 			return { content: [{ type: "text" as const, text: rendered }], details: {} };

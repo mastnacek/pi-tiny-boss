@@ -2,15 +2,29 @@
  * Public boundary of the `engine` slice.
  *
  * The only place that knows the engine exists. Callers get a TinyEngine or a
- * typed failure — never a half-built WASM module.
+ * typed failure — never a half-loaded ONNX session.
  */
 
-export { EngineUnavailableError, createNeedleEngine } from "./needle.js";
-export { ASSETS, CACHE_DIR, assetPath, assetStatus, assetsReady, downloadAsset } from "./assets.js";
+export { EngineUnavailableError, createLayaEngine, threadCount } from "./laya.js";
+export {
+	BUNDLE_FILES,
+	BUNDLE_REPO,
+	BUNDLE_BYTES_APPROX,
+	STATE_DIR,
+	assetPath,
+	assetStatus,
+	assetsReady,
+	bundleDir,
+	cacheBytes,
+	fetchBundle,
+	layaCacheDir,
+	readConfigSummary,
+	type FetchProgress,
+} from "./assets.js";
 
-import { createNeedleEngine, EngineUnavailableError } from "./needle.js";
+import { createLayaEngine, EngineUnavailableError } from "./laya.js";
 import { assetsReady } from "./assets.js";
-import type { TinyBossState, TinyEngine, ToolSpec } from "../../shared/types.js";
+import type { TinyBossState, TinyEngine } from "../../shared/types.js";
 import { recordFailure } from "../../shared/state.js";
 
 /** What `getEngine` reports back to the caller. */
@@ -21,24 +35,30 @@ export type EngineResolution =
 /**
  * Return the cached engine, building it on first use.
  *
- * On failure the reason is latched into state so the input hook stops retrying
- * on every prompt — a missing cache must cost one failed call, not one per turn.
+ * Building is the one slow call in the plugin: an ONNX session over 1.7 GB of
+ * fp32 weights takes seconds, and it happens once per process. The duration is
+ * recorded on state so `/tiny-boss status` can report it rather than leaving the
+ * user to wonder why one prompt took a while.
+ *
+ * On failure the reason is latched so the input hook stops retrying on every
+ * prompt — a missing cache must cost one failed call, not one per turn.
  */
 export async function getEngine(
 	state: TinyBossState,
-	tools: ToolSpec[] = [],
 ): Promise<EngineResolution> {
 	if (state.engine) return { ok: true, engine: state.engine };
 
 	if (!(await assetsReady())) {
-		const message = "needle3 assets are not cached — run /tiny-boss fetch";
+		const message = "Laya ONNX bundle is not cached — run /tiny-boss fetch (about 1.7 GB, once)";
 		recordFailure(state, "assets-missing", message);
 		return { ok: false, reason: "assets-missing", message };
 	}
 
+	const started = Date.now();
 	try {
-		const engine = await createNeedleEngine(tools);
+		const engine = await createLayaEngine();
 		state.engine = engine;
+		state.engineLoadMs = Date.now() - started;
 		state.degraded = null;
 		state.lastError = null;
 		return { ok: true, engine };
@@ -48,6 +68,17 @@ export async function getEngine(
 		recordFailure(state, reason, message);
 		return { ok: false, reason, message };
 	}
+}
+
+/**
+ * Build the engine without planning anything.
+ *
+ * `/tiny-boss warm` uses this so the one-time load happens when the user asks
+ * for it, instead of being charged to whichever prompt happens to arrive first.
+ */
+export async function warmEngine(state: TinyBossState): Promise<EngineResolution> {
+	await releaseEngine(state);
+	return getEngine(state);
 }
 
 /** Release the cached engine. Safe to call when nothing was ever built. */

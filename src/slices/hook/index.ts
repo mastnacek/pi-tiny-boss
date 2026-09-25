@@ -1,5 +1,5 @@
 /**
- * The hook: needle3 plans, then the frontier model is handed the plan.
+ * The hook: Laya plans, then the frontier model is handed the plan.
  *
  * This slice owns no engine and no schema. It receives a `plan` function from
  * the composition root, which is what keeps slices independent.
@@ -7,12 +7,12 @@
  * The rules are strict, because this is the only code on the prompt's hot path:
  *
  *   1. Never throw. A broken tiny model must not break the session.
- *   2. Never block. On any failure return `{ action: "continue" }` and the user
- *      prompt reaches the model exactly as typed.
+ *   2. Never block past the budget. The two Laya passes are timed by the planner;
+ *      the one-time ONNX session load is not, and is reported separately.
  *   3. Never retry a latched failure. Missing assets cost one failed call, not
  *      one per turn.
- *   4. Never plan a slash command or a trivial message — a 40-character prompt
- *      gets a confident answer out of a 121M model, and that answer is noise.
+ *   4. Never plan a slash command or a trivial message — a short prompt gets a
+ *      confident answer out of any small model, and that answer is noise.
  */
 
 import type {
@@ -32,7 +32,7 @@ export interface HookPlan {
 	text: string;
 	/** How many steps the tiny model proposed. */
 	stepCount: number;
-	/** Wall-clock cost, surfaced in the TUI notification. */
+	/** Wall-clock cost of both passes, surfaced in the TUI notification. */
 	elapsedMs: number;
 }
 
@@ -84,7 +84,7 @@ export function registerInputHook(
 
 			if (ctx.hasUI) {
 				ctx.ui.notify(
-					`tiny-boss: ${plan.stepCount} step plan from needle3 (${plan.elapsedMs}ms)`,
+					`tiny-boss: ${plan.stepCount} step plan from Laya (${plan.elapsedMs}ms)`,
 				);
 			}
 			return { action: "transform", text: plan.text } as const;

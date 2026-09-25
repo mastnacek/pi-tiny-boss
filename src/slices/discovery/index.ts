@@ -1,9 +1,9 @@
 /**
  * Public boundary of the `discovery` slice.
  *
- * Turns "what is installed" into ToolSpec entries the planner can hand to
- * needle3. Imported only by the composition root, which then passes the result
- * down as data — no slice reaches into another.
+ * Turns "what is installed" into ToolSpec entries the planner can hand to Laya.
+ * Imported only by the composition root, which then passes the result down as
+ * data — no slice reaches into another.
  */
 
 import { detectBinaries, resolveOnPath } from "./probe.js";
@@ -17,13 +17,19 @@ export type { DetectedBinary } from "./probe.js";
 /**
  * Detected binaries as tools the tiny model may name.
  *
- * `name` is the binary, because that is what needle should reason about.
+ * `name` is the binary, because that is what the tiny model reasons about.
  * `invokedAs` records how the big model actually runs it — always `bash` here,
  * since pi has no tool for an arbitrary executable.
+ *
+ * `short` and `category` travel with the spec because both are load-bearing for
+ * Laya: `short` is the option text it scores, and `category` decides which
+ * bucket the binary competes in.
  */
 export function systemTools(detected: Array<{ binary: string; entry: CatalogueEntry }>): ToolSpec[] {
 	return detected.map(({ binary, entry }) => ({
 		name: binary,
+		short: entry.short,
+		category: entry.category,
 		description: entry.description,
 		invokedAs: "bash",
 		example: entry.example,
@@ -38,12 +44,13 @@ export function discoverSystemTools(pathEnv: string = process.env.PATH ?? ""): T
 
 /** One-line-per-entry report for `/tiny-boss tools`. */
 export function formatDetection(
-	detected: Array<{ binary: string; path: string }>,
+	detected: Array<{ binary: string; path: string; entry?: CatalogueEntry }>,
 	missing: string[],
 ): string {
 	const lines: string[] = [];
-	for (const { binary, path } of detected) {
-		lines.push(`  ${binary.padEnd(12)} ${path}`);
+	for (const { binary, path, entry } of detected) {
+		const bucket = entry ? `[${entry.category}] ` : "";
+		lines.push(`  ${binary.padEnd(12)} ${bucket}${path}`);
 	}
 	if (missing.length > 0) {
 		lines.push("");
