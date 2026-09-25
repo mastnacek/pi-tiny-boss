@@ -13,17 +13,25 @@ import type { PlanStep, ToolSpec } from "../../shared/types.js";
 export { PLAN_SYSTEM_PROMPT, PLAN_TOOL_NAME, buildToolsJson };
 
 /** Coerce one engine-supplied step, dropping anything malformed. */
-function coerceStep(input: unknown, allowed: Set<string>): PlanStep | null {
+function coerceStep(input: unknown, specs: Map<string, ToolSpec>): PlanStep | null {
 	if (!input || typeof input !== "object") return null;
 	const raw = input as Record<string, unknown>;
 	const tool = typeof raw.tool === "string" ? raw.tool.trim() : "";
-	if (!tool || !allowed.has(tool)) return null;
+	if (!tool) return null;
+	const spec = specs.get(tool);
+	if (!spec) return null;
 	const args =
 		raw.args && typeof raw.args === "object" && !Array.isArray(raw.args)
 			? (raw.args as Record<string, unknown>)
 			: {};
 	const why = typeof raw.why === "string" ? raw.why.trim() : "";
-	return { tool, args, why: why.slice(0, 240) };
+	return {
+		tool,
+		args,
+		why: why.slice(0, 240),
+		invokedAs: spec.invokedAs,
+		example: spec.example,
+	};
 }
 
 /**
@@ -34,7 +42,7 @@ function coerceStep(input: unknown, allowed: Set<string>): PlanStep | null {
  * an exception inside the input hook.
  */
 export function parsePlan(raw: string, tools: ToolSpec[]): PlanStep[] {
-	const allowed = new Set(tools.map((t) => t.name));
+	const specs = new Map(tools.map((t) => [t.name, t]));
 	let parsed: unknown;
 	try {
 		parsed = JSON.parse(raw);
@@ -58,17 +66,27 @@ export function parsePlan(raw: string, tools: ToolSpec[]): PlanStep[] {
 		if (!Array.isArray(steps)) continue;
 
 		const coerced = steps
-			.map((s) => coerceStep(s, allowed))
+			.map((s) => coerceStep(s, specs))
 			.filter((s): s is PlanStep => s !== null);
 		if (coerced.length > 0) return coerced.slice(0, 6);
 	}
 	return [];
 }
 
-/** Render one step as a compact, model-readable line. */
+/**
+ * Render one step as a compact, model-readable line.
+ *
+ * A detected binary is named by the tiny model (`rg`) but must be run through
+ * `bash`, so the line shows the real invocation and names the binary it came
+ * from. A plan the model cannot execute is worse than no plan.
+ */
 function renderStep(step: PlanStep, index: number): string {
-	const args = Object.keys(step.args).length > 0 ? ` ${JSON.stringify(step.args)}` : "";
 	const why = step.why.length > 0 ? ` — ${step.why}` : "";
+	if (step.invokedAs === "bash" && step.example) {
+		const command = JSON.stringify({ command: step.example });
+		return `${index + 1}. bash ${command} (via ${step.tool})${why}`;
+	}
+	const args = Object.keys(step.args).length > 0 ? ` ${JSON.stringify(step.args)}` : "";
 	return `${index + 1}. ${step.tool}${args}${why}`;
 }
 

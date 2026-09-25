@@ -9,6 +9,15 @@ export interface ToolSpec {
 	name: string;
 	/** One line, imperative, describing when to reach for it. */
 	description: string;
+	/**
+	 * How the coding model actually runs this, when it differs from `name`.
+	 * A detected binary is named `rg` but must be invoked as `bash`.
+	 */
+	invokedAs?: string;
+	/** A ready-made invocation, handed to the model verbatim. */
+	example?: string;
+	/** Provenance, for `/tiny-boss tools`. */
+	source?: "builtin" | "system" | "user";
 }
 
 /** A single step of the plan the tiny model produced. */
@@ -19,6 +28,10 @@ export interface PlanStep {
 	args: Record<string, unknown>;
 	/** Short justification, shown to the coding model as a hint. */
 	why: string;
+	/** How to actually invoke it, when the manifest says so (a binary via bash). */
+	invokedAs?: string;
+	/** Ready-made invocation copied from the manifest. */
+	example?: string;
 }
 
 /** The full plan plus the provenance the UI reports. */

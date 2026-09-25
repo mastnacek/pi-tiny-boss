@@ -5,7 +5,7 @@
  * directive string or null — never a thrown error and never a half-plan.
  */
 
-import type { TinyBossState, TinyEngine, PlanStep } from "../../shared/types.js";
+import type { TinyBossState, TinyEngine, PlanStep, ToolSpec } from "../../shared/types.js";
 import { manifestTools } from "../../shared/manifest.js";
 import { buildToolsJson, parsePlan, renderDirective, PLAN_SYSTEM_PROMPT } from "./plan.js";
 
@@ -17,6 +17,8 @@ export interface PlanRequest {
 	prompt: string;
 	/** Engine to ask. Omit to reuse the one cached on state. */
 	engine?: TinyEngine;
+	/** Extra manifest entries: detected system binaries plus user tools. */
+	tools?: ToolSpec[];
 	/** Milliseconds after which we give up and let the prompt through untouched. */
 	timeoutMs?: number;
 }
@@ -47,7 +49,7 @@ export async function planPrompt(
 	const engine = request.engine ?? state.engine;
 	if (!engine) return null;
 
-	const tools = manifestTools();
+	const tools = manifestTools(request.tools ?? []);
 	const started = Date.now();
 	const timeoutMs = request.timeoutMs ?? 4000;
 
@@ -74,9 +76,9 @@ export async function planPrompt(
 }
 
 /** Exposed for the command layer, which pre-renders the manifest for display. */
-export function describeManifest(): string {
+export function describeManifest(tools: ToolSpec[] = []): string {
 	return JSON.stringify(
-		manifestTools().map((t) => ({ name: t.name, description: t.description })),
+		manifestTools(tools).map((t) => ({ name: t.name, description: t.description, source: t.source })),
 		null,
 		2,
 	);

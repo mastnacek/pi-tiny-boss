@@ -45,6 +45,7 @@ prompt through untouched. It never downloads on the prompt path.
 | `/tiny-boss on` | plan every prompt (default) |
 | `/tiny-boss off` | pass prompts through untouched |
 | `/tiny-boss status` | engine state, asset cache, last plan, last error |
+| `/tiny-boss tools` | list the system binaries needle3 may name on this machine |
 | `/tiny-boss fetch` | download the needle3 assets (once) |
 | `/tiny-boss plan <prompt>` | dry run: show the plan, change nothing |
 
@@ -82,6 +83,39 @@ a different approach, deviate and say why in one sentence.
 5. **Validate every tool name** against the manifest. A hallucinated tool is
    dropped, not forwarded.
 6. **Cap the plan at six steps** and truncate the rationale at 240 characters.
+7. **Never shadow a built-in.** Extras merge only into free names.
+
+## It knows about your machine, not just pi's tools
+
+Pi exposes no tool registry to extensions, and its built-ins are deliberately
+generic. So the plugin **probes your PATH** at load and adds every binary worth
+naming to the manifest — ripgrep, fd, bat, jq, yq, sd, difftastic, git-delta,
+hyperfine, zoxide, just, gh, uv, sqlite3 and more. On the machine this was built
+on that is 14 detected binaries, giving needle3 a 22-tool manifest.
+
+A binary is not a pi tool, so the plan renderer translates it:
+
+```
+1. bash {"command":"rg -n --type ts \"pi.on\\(\" ."} (via rg) — find the listeners
+```
+
+needle3 names the *binary* it wants; the model receives a command it can
+actually run. A plan the coding model cannot execute would be worse than no
+plan, so the translation is not optional.
+
+Add your own with `~/.pi/agent/pi-tiny-boss.tools.json`:
+
+```json
+{
+  "tools": [
+    { "name": "mytool", "description": "What it is for and when to reach for it." }
+  ]
+}
+```
+
+A malformed file yields an empty list — bad config never breaks the hook.
+Built-in tools always win a name clash, so a config cannot shadow the real
+`read`.
 
 ## Architecture
 
@@ -91,6 +125,7 @@ Vertical slices, one dependency direction:
 index.ts                 composition root — the only multi-slice importer
 ├── slices/engine/       needle3 WASM: download, init, one-shot completion
 ├── slices/planner/      schema validation + prompt rendering (pure)
+├── slices/discovery/    PATH probe -> ToolSpec the tiny model may name
 ├── slices/hook/         the `input` listener, planner injected
 ├── slices/commands/     /tiny-boss, dependencies injected
 ├── slices/tools/        the tiny_boss tool, dependencies injected
@@ -102,9 +137,13 @@ suite runs against a fake and never touches WASM. 23 tests, no model download.
 
 ## Honest limitations
 
-- **The manifest is curated, not discovered.** Pi does not expose the live tool
-  registry to extensions, and needle3 degrades badly on long manifests, so eight
-  tools is the deliberate ceiling.
+- **The manifest is curated, not discovered from pi.** Pi does not expose the live tool
+  registry to extensions, so the built-in eight are hand-written and the rest is
+  discovered from your own PATH. needle3 degrades badly on long manifests, so
+  the catalogue is deliberately short.
+- **A binary is named, not called.** Every detected tool renders as a `bash`
+  command. That is honest but it means the model gets a *suggested* invocation,
+  not an executed one.
 - **One plan per prompt.** The `input` hook sees the opening prompt; it does not
   re-plan when a turn changes shape. That is what the `tiny_boss` tool is for.
 - **Subagent sessions are skipped** by design — a delegation guard keeps child

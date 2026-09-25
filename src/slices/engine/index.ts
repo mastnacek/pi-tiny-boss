@@ -10,7 +10,7 @@ export { ASSETS, CACHE_DIR, assetPath, assetStatus, assetsReady, downloadAsset }
 
 import { createNeedleEngine, EngineUnavailableError } from "./needle.js";
 import { assetsReady } from "./assets.js";
-import type { TinyBossState, TinyEngine } from "../../shared/types.js";
+import type { TinyBossState, TinyEngine, ToolSpec } from "../../shared/types.js";
 import { recordFailure } from "../../shared/state.js";
 
 /** What `getEngine` reports back to the caller. */
@@ -24,7 +24,10 @@ export type EngineResolution =
  * On failure the reason is latched into state so the input hook stops retrying
  * on every prompt — a missing cache must cost one failed call, not one per turn.
  */
-export async function getEngine(state: TinyBossState): Promise<EngineResolution> {
+export async function getEngine(
+	state: TinyBossState,
+	tools: ToolSpec[] = [],
+): Promise<EngineResolution> {
 	if (state.engine) return { ok: true, engine: state.engine };
 
 	if (!(await assetsReady())) {
@@ -34,7 +37,7 @@ export async function getEngine(state: TinyBossState): Promise<EngineResolution>
 	}
 
 	try {
-		const engine = await createNeedleEngine();
+		const engine = await createNeedleEngine(tools);
 		state.engine = engine;
 		state.degraded = null;
 		state.lastError = null;

@@ -11,7 +11,7 @@ import type { TinyBossState } from "../../shared/types.js";
 import { recordFailure } from "../../shared/state.js";
 
 /** Subcommands. Terminal rows take no trailing space; `plan` continues. */
-const TERMINAL_MODES = ["on", "off", "status", "fetch"] as const;
+const TERMINAL_MODES = ["on", "off", "status", "fetch", "tools"] as const;
 const ARGUMENT_MODES = ["plan"] as const;
 type Mode = (typeof TERMINAL_MODES)[number] | (typeof ARGUMENT_MODES)[number];
 
@@ -30,6 +30,8 @@ export interface CommandDeps {
 	dryRunPlan: (prompt: string) => Promise<string | null>;
 	/** Report whether assets are cached, for the status line. */
 	assetReport: () => Promise<string>;
+	/** List the system binaries needle3 is allowed to name on this machine. */
+	toolReport: () => string;
 }
 
 function isMode(value: string): value is Mode {
@@ -43,7 +45,7 @@ export function registerCommands(
 ): void {
 	pi.registerCommand("tiny-boss", {
 		description:
-			"needle3 (121M, local) plans your tool calls before the big model runs: on, off, status, fetch, plan <prompt>",
+			"needle3 (121M, local) plans your tool calls before the big model runs: on, off, status, tools, fetch, plan <prompt>",
 		handler: async (args: string, ctx: ExtensionContext) => {
 			const [head = "", ...rest] = args.trim().split(/\s+/);
 			const mode = head.toLowerCase();
@@ -90,6 +92,11 @@ export function registerCommands(
 				return;
 			}
 
+			if (mode === "tools") {
+				ctx.ui.notify?.(deps.toolReport());
+				return;
+			}
+
 			if (mode === "plan") {
 				const prompt = rest.join(" ").trim();
 				if (!prompt) {
@@ -109,6 +116,7 @@ export function registerCommands(
 						"on      enable planning on every prompt",
 						"off     disable, pass prompts through untouched",
 						"status  show engine state, asset cache and the last plan",
+						"tools   list the system binaries needle3 may name here",
 						"fetch   download the ~36 MB needle3 assets (once)",
 						"plan    dry-run a prompt and show the plan, changing nothing",
 					].join("\n"),

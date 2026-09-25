@@ -113,7 +113,7 @@ async function instantiate(): Promise<NeedleModule> {
  * Throws EngineUnavailableError("assets-missing") when the cache is empty, which
  * is the normal state before `/tiny-boss fetch` has ever run.
  */
-export async function createNeedleEngine(): Promise<TinyEngine> {
+export async function createNeedleEngine(tools: ToolSpec[] = []): Promise<TinyEngine> {
 	if (!(await assetsReady())) {
 		throw new EngineUnavailableError(
 			"needle3 assets are not cached — run /tiny-boss fetch",
@@ -138,7 +138,7 @@ export async function createNeedleEngine(): Promise<TinyEngine> {
 	try {
 		const code = module._needle_init(
 			encode(PLAN_SYSTEM_PROMPT),
-			encode(buildToolsJson(manifestTools())),
+			encode(buildToolsJson(manifestTools(tools))),
 			0,
 		);
 		if (code < 0) {
