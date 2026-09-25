@@ -6,7 +6,8 @@ Laya — a non-autoregressive decision model from Convai Innovations (Apache 2.0
 421M parameters for the English checkpoint) — reads your prompt on the `input`
 hook, scores a short set of typed questions about which *kinds* of work it needs,
 and the frontier model is handed the resulting tool plan instead of being left to
-guess. It runs entirely offline through ONNX Runtime, costs nothing per call, and
+guess. It runs entirely offline through ONNX Runtime — on the GPU where one is
+available (129 ms for a plan), on the CPU otherwise — costs nothing per call, and
 never generates a token.
 
 It cannot write your code and it cannot read your repository. It can tell the big
@@ -284,9 +285,10 @@ questions)` method — so the whole test suite runs against a fake and never
 downloads 1.6 GB. `shared/types.ts` declares Laya's question and answer shapes
 structurally and `slices/engine/laya.ts` is the single place that casts to the real
 ones, which keeps every other slice and every test independent of a native
-dependency being loadable. 84 tests, no model download — and the one test that
+dependency being loadable. 89 tests, no model download — and the one test that
 does import the library skips rather than fails when the native binding is broken,
-which is the same property the plugin itself has.
+which is the same property the plugin itself has. `/tiny-boss status` reports the
+execution provider the engine settled on.
 
 ## Measured quality
 
@@ -303,7 +305,7 @@ accuracy is the same 21%.
 ACCURACY   7/34  =  21%
 ERRORS     0/34  =   0%     (needle3: 20/34 truncation)
 DISCUSSION 4/12 prompts that need no tools produced no plan
-LATENCY    p50 1046ms  p90 1485ms  max 1719ms   (both passes, 4 CPU threads)
+LATENCY    p50 159ms  p90 226ms  max 324ms   (both passes, webgpu)
 ```
 
 | Category | Score |
@@ -365,6 +367,12 @@ a 0.461 majority-class baseline in its own card, versus 0.766 for a checkpoint
 fine-tuned on that benchmark's training split. A continuous spread of
 probabilities that does not align with truth is what near-chance looks like.
 
+The same eval on the CPU and on the GPU produced **the same decisions** — same
+7/34, same per-bucket gate table above, same 0.32-vs-0.39 calibration — with only
+the latency line moving. That is worth stating because it means the execution
+provider changes nothing about the answer, which is what makes the speedup
+described below safe to take.
+
 Short garbage still gets a confident answer — 10 of 11 sub-24-character inputs
 passed a gate, every one of them resolving to `gh` — so the 24-character gate in
 the hook is what protects a session, not the model's judgement. That was true of
@@ -390,14 +398,78 @@ npm run eval          # writes eval/out.json, scores it, writes eval/gates.json
 Both files are committed, so the numbers above are auditable and a re-run is
 comparable rather than a fresh claim.
 
+## Hardware and acceleration
+
+The engine runs the ONNX graph on whatever execution provider works. `auto` (the
+default) prefers the GPU and falls back to the CPU, and every provider is **probed
+with a real decision before it is accepted** — because loading a session is not
+evidence that it can execute one.
+
+Measured on this machine (Intel i9-14900K, 24 cores / 32 threads; NVIDIA RTX 5060
+Ti 16 GB; Windows 11; `onnxruntime-node` 1.30.0). p50 for one plugin plan:
+
+| Provider | p50 | Note |
+| --- | --- | --- |
+| `webgpu` (RTX 5060 Ti) | **129–163 ms** | same answers as CPU, to two decimals |
+| `cpu`, 24 threads | 578 ms | best CPU setting |
+| `cpu`, 4 threads | 1131 ms | the old default, for no reason |
+| `cpu`, 32 threads | 793 ms | every logical thread is *worse* — oversubscription |
+| `dml` | fails | builds a session, then dies on the first inference |
+| `cuda` | absent | not in the published binary at all |
+
+Thread scaling, p50 for one plan: 4 → 1131 ms, 8 → 781, 12 → 711, 16 → 671,
+24 → 578, 32 → 793. The optimum sits at the physical core count, so the default
+is `0.75 × logical` (24 here), clamped to 32. Inference runs in the TUI process,
+which is why the default stops short of every thread.
+
+| Variable | Default | Effect |
+| --- | --- | --- |
+| `PI_TINY_BOSS_EP` | `auto` | `auto` \| `cpu` \| `webgpu` \| `dml`; anything else is treated as `auto` |
+| `PI_TINY_BOSS_THREADS` | `0.75 × logical` | ONNX thread count for CPU-resident work |
+
+`/tiny-boss status` reports which provider actually won (`loaded on webgpu`), so a
+silent downgrade is visible rather than inferred from the latency.
+
+### About CUDA
+
+A CUDA GPU does not make CUDA available here, and that is a packaging fact rather
+than a configuration one. `onnxruntime-node`'s published binary bundles only
+`cpu`, `dml` and `webgpu`:
+
+```
+listSupportedBackends() -> [ cpu (bundled), dml (bundled), webgpu (bundled) ]
+```
+
+There is no CUDA or TensorRT provider in it, and no amount of `executionProviders`
+will conjure one. Two consequences:
+
+- **The GPU is still worth using.** `webgpu` reaches the NVIDIA card through DX12
+  and was 4x faster than the best CPU setting with byte-comparable answers. On the
+  5060 Ti, 129 ms for a seven-question pass is in the same league as the model
+  card's 32.8 ms T4 figure.
+- **Real CUDA means leaving Node.** Running inference in Python through Laya's own
+  `laya-serve` (torch + CUDA) and pointing the plugin at it over HTTP is the
+  supported route to a CUDA EP, and would be a second engine backend. Not
+  implemented, and not needed while `webgpu` behaves.
+
+`dml` is a GPU provider on paper and is deliberately *not* in the `auto` chain: it
+builds a session and then fails on the first inference (`Reshape` node,
+`MLOperatorAuthorImpl` `0x80070057`). Asking for it explicitly gives you that
+failure and no fallback, because an explicit request deserves the real reason
+rather than a silent substitution.
+
 ## Honest limitations
 
+- **WebGPU in Node is newer than CUDA.** It was stable over 200 consecutive passes
+  here — 0 errors, p50 163 ms, p99 337 ms, first-20 174 ms to last-20 154 ms, so no
+  drift and no device loss — but that is one machine and one session length. If the
+  GPU path misbehaves, `PI_TINY_BOSS_EP=cpu` is a one-variable retreat.
 - **About 1.6 GB of weights and 2 GB of RAM.** fp32 ONNX, no quantised bundle
-  published. The one-time session load is seconds, not milliseconds.
-- **Two passes cost about a second on CPU** (p50 1046 ms, p90 1485 ms over 34
-  prompts, 4 threads). The card's 32.8 ms is a T4 GPU figure; expect roughly
-  an order of magnitude more on CPU, which still fits the 4 s budget but not
-  comfortably.
+  published. The one-time session load is 1.2–2.7 s (the GPU takes slightly longer
+  to warm up), not milliseconds.
+- **The CPU fallback costs about half a second** (p50 578 ms on 24 threads) where
+  the GPU costs 160 ms. The card's 32.8 ms is a T4 figure; both fit the 4 s budget
+  with room to spare, which the old 4-thread default did not.
 - **The prompt is truncated at 512 tokens** for the English checkpoint, after the
   question header. Laya sees the opening of a long prompt, not all of it.
 - **English by default.** The multilingual checkpoint (`laya-multilingual`, 322M,

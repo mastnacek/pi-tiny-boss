@@ -104,6 +104,8 @@ export type LayaAnswers = Record<string, LayaChoiceAnswer>;
 export interface TinyEngine {
 	/** Answer every question in one forward pass. Throws on engine failure. */
 	ask(state: string, questions: Record<string, LayaQuestion>): Promise<LayaAnswers>;
+	/** Which ONNX execution provider actually runs the graph. */
+	readonly provider: string;
 	/** Release the ONNX session. */
 	close(): Promise<void>;
 }
@@ -131,6 +133,14 @@ export interface TinyBossState {
 	lastPlan: TinyPlan | null;
 	/** Lazily-created engine, kept across prompts for latency. */
 	engine: TinyEngine | null;
+	/**
+	 * The execution provider the engine settled on.
+	 *
+	 * Reported because `auto` prefers the GPU and falls back to the CPU when a
+	 * provider loads but cannot execute: without this number there is no way to
+	 * tell a working GPU from a silent downgrade.
+	 */
+	engineProvider: string | null;
 	/**
 	 * How long the one-time ONNX session load took.
 	 *

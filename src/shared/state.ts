@@ -14,6 +14,7 @@ export function createInitialState(): TinyBossState {
 		planCount: 0,
 		lastPlan: null,
 		engine: null,
+		engineProvider: null,
 		engineLoadMs: null,
 	};
 }

@@ -65,7 +65,7 @@ export function registerCommands(
 				const lines = [
 					`enabled:    ${state.enabled}`,
 					`degraded:   ${state.degraded ?? "no"}`,
-					`engine:     ${state.engine ? "loaded" : "not loaded"}${state.engineLoadMs !== null ? ` (load took ${state.engineLoadMs}ms)` : ""}`,
+					`engine:     ${state.engine ? `loaded on ${state.engineProvider ?? "unknown"}` : "not loaded"}${state.engineLoadMs !== null ? ` (load took ${state.engineLoadMs}ms)` : ""}`,
 					`plans made: ${state.planCount}`,
 					`last run:   ${state.lastRunTimestamp ? new Date(state.lastRunTimestamp).toLocaleTimeString() : "never"}`,
 					`last error: ${state.lastError ?? "none"}`,

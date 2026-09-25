@@ -41,36 +41,36 @@
    "hit": false,
    "falsePositive": false,
    "n": 1,
-   "ms": 1167,
+   "ms": 324,
    "gates": [
     {
      "category": "search",
-     "p": 0.1575,
+     "p": 0.1546,
      "passed": false
     },
     {
      "category": "read",
-     "p": 0.127,
+     "p": 0.1309,
      "passed": false
     },
     {
      "category": "edit",
-     "p": 0.0903,
+     "p": 0.0901,
      "passed": false
     },
     {
      "category": "execute",
-     "p": 0.2855,
+     "p": 0.293,
      "passed": false
     },
     {
      "category": "vcs",
-     "p": 0.54,
+     "p": 0.5336,
      "passed": true
     },
     {
      "category": "data",
-     "p": 0.196,
+     "p": 0.1975,
      "passed": false
     }
    ],
@@ -96,7 +96,7 @@
    "hit": true,
    "falsePositive": false,
    "n": 2,
-   "ms": 1362,
+   "ms": 196,
    "gates": [
     {
      "category": "search",
@@ -133,12 +133,12 @@
     {
      "category": "search",
      "tool": "find",
-     "p": 0.5755
+     "p": 0.5707
     },
     {
      "category": "vcs",
      "tool": "gh",
-     "p": 0.4761
+     "p": 0.4768
     }
    ],
    "err": null
@@ -156,7 +156,7 @@
    "hit": false,
    "falsePositive": false,
    "n": 1,
-   "ms": 1310,
+   "ms": 203,
    "gates": [
     {
      "category": "search",
@@ -214,7 +214,7 @@
    "hit": false,
    "falsePositive": false,
    "n": 0,
-   "ms": 948,
+   "ms": 129,
    "gates": [
     {
      "category": "search",
@@ -260,7 +260,7 @@
    "hit": false,
    "falsePositive": false,
    "n": 0,
-   "ms": 936,
+   "ms": 128,
    "gates": [
     {
      "category": "search",
@@ -306,7 +306,7 @@
    "hit": false,
    "falsePositive": false,
    "n": 1,
-   "ms": 1046,
+   "ms": 159,
    "gates": [
     {
      "category": "search",
@@ -343,7 +343,7 @@
     {
      "category": "vcs",
      "tool": "gh",
-     "p": 0.4338
+     "p": 0.4353
     }
    ],
    "err": null
@@ -360,7 +360,7 @@
    "hit": false,
    "falsePositive": false,
    "n": 0,
-   "ms": 970,
+   "ms": 129,
    "gates": [
     {
      "category": "search",
@@ -408,16 +408,16 @@
    "hit": true,
    "falsePositive": false,
    "n": 1,
-   "ms": 1040,
+   "ms": 158,
    "gates": [
     {
      "category": "search",
-     "p": 0.2424,
+     "p": 0.2415,
      "passed": false
     },
     {
      "category": "read",
-     "p": 0.6062,
+     "p": 0.6072,
      "passed": true
     },
     {
@@ -427,17 +427,17 @@
     },
     {
      "category": "execute",
-     "p": 0.2328,
+     "p": 0.2334,
      "passed": false
     },
     {
      "category": "vcs",
-     "p": 0.3871,
+     "p": 0.3862,
      "passed": false
     },
     {
      "category": "data",
-     "p": 0.2123,
+     "p": 0.2138,
      "passed": false
     }
    ],
@@ -461,36 +461,36 @@
    "hit": false,
    "falsePositive": false,
    "n": 0,
-   "ms": 1002,
+   "ms": 130,
    "gates": [
     {
      "category": "search",
-     "p": 0.3588,
+     "p": 0.3519,
      "passed": false
     },
     {
      "category": "read",
-     "p": 0.147,
+     "p": 0.1459,
      "passed": false
     },
     {
      "category": "edit",
-     "p": 0.2766,
+     "p": 0.2772,
      "passed": false
     },
     {
      "category": "execute",
-     "p": 0.3195,
+     "p": 0.3211,
      "passed": false
     },
     {
      "category": "vcs",
-     "p": 0.3911,
+     "p": 0.3874,
      "passed": false
     },
     {
      "category": "data",
-     "p": 0.272,
+     "p": 0.2728,
      "passed": false
     }
    ],
@@ -511,7 +511,7 @@
    "hit": false,
    "falsePositive": false,
    "n": 3,
-   "ms": 1575,
+   "ms": 226,
    "gates": [
     {
      "category": "search",
@@ -548,22 +548,22 @@
     {
      "category": "search",
      "tool": "find",
-     "p": 0.2741
+     "p": 0.2727
     },
     {
      "category": "edit",
      "tool": "write",
-     "p": 0.3685
+     "p": 0.3704
     },
     {
      "category": "execute",
      "tool": "uv",
-     "p": 0.4207
+     "p": 0.4218
     },
     {
      "category": "vcs",
      "tool": "gh",
-     "p": 0.4368
+     "p": 0.436
     }
    ],
    "err": null
@@ -580,7 +580,7 @@
    "hit": true,
    "falsePositive": false,
    "n": 2,
-   "ms": 1171,
+   "ms": 297,
    "gates": [
     {
      "category": "search",
@@ -639,36 +639,36 @@
    "hit": false,
    "falsePositive": false,
    "n": 1,
-   "ms": 1132,
+   "ms": 174,
    "gates": [
     {
      "category": "search",
-     "p": 0.2272,
+     "p": 0.2248,
      "passed": false
     },
     {
      "category": "read",
-     "p": 0.0977,
+     "p": 0.0943,
      "passed": false
     },
     {
      "category": "edit",
-     "p": 0.3524,
+     "p": 0.356,
      "passed": false
     },
     {
      "category": "execute",
-     "p": 0.5529,
+     "p": 0.5517,
      "passed": true
     },
     {
      "category": "vcs",
-     "p": 0.4094,
+     "p": 0.4081,
      "passed": false
     },
     {
      "category": "data",
-     "p": 0.2285,
+     "p": 0.2293,
      "passed": false
     }
    ],
@@ -676,7 +676,7 @@
     {
      "category": "execute",
      "tool": "uv",
-     "p": 0.3739
+     "p": 0.3773
     }
    ],
    "err": null
@@ -691,7 +691,7 @@
    "hit": false,
    "falsePositive": false,
    "n": 0,
-   "ms": 1068,
+   "ms": 163,
    "gates": [
     {
      "category": "search",
@@ -743,7 +743,7 @@
    "hit": false,
    "falsePositive": false,
    "n": 4,
-   "ms": 1599,
+   "ms": 226,
    "gates": [
     {
      "category": "search",
@@ -811,7 +811,7 @@
    "hit": false,
    "falsePositive": false,
    "n": 4,
-   "ms": 1719,
+   "ms": 239,
    "gates": [
     {
      "category": "search",
@@ -848,12 +848,12 @@
     {
      "category": "search",
      "tool": "fd",
-     "p": 0.2665
+     "p": 0.2536
     },
     {
      "category": "read",
      "tool": "bat",
-     "p": 0.5005
+     "p": 0.5009
     },
     {
      "category": "edit",
@@ -863,12 +863,12 @@
     {
      "category": "execute",
      "tool": "uv",
-     "p": 0.3426
+     "p": 0.344
     },
     {
      "category": "vcs",
      "tool": "gh",
-     "p": 0.4703
+     "p": 0.4707
     }
    ],
    "err": null
@@ -883,7 +883,7 @@
    "hit": false,
    "falsePositive": false,
    "n": 1,
-   "ms": 1088,
+   "ms": 166,
    "gates": [
     {
      "category": "search",
@@ -936,7 +936,7 @@
    "hit": false,
    "falsePositive": false,
    "n": 0,
-   "ms": 1073,
+   "ms": 166,
    "gates": [
     {
      "category": "search",
@@ -991,16 +991,16 @@
    "hit": false,
    "falsePositive": false,
    "n": 0,
-   "ms": 949,
+   "ms": 127,
    "gates": [
     {
      "category": "search",
-     "p": 0.2245,
+     "p": 0.2231,
      "passed": false
     },
     {
      "category": "read",
-     "p": 0.1695,
+     "p": 0.1698,
      "passed": false
     },
     {
@@ -1010,17 +1010,17 @@
     },
     {
      "category": "execute",
-     "p": 0.1989,
+     "p": 0.1985,
      "passed": false
     },
     {
      "category": "vcs",
-     "p": 0.3742,
+     "p": 0.3778,
      "passed": false
     },
     {
      "category": "data",
-     "p": 0.2227,
+     "p": 0.223,
      "passed": false
     }
    ],
@@ -1040,7 +1040,7 @@
    "hit": false,
    "falsePositive": false,
    "n": 1,
-   "ms": 1104,
+   "ms": 167,
    "gates": [
     {
      "category": "search",
@@ -1077,7 +1077,7 @@
     {
      "category": "vcs",
      "tool": "gh",
-     "p": 0.3772
+     "p": 0.3782
     }
    ],
    "err": null
@@ -1096,7 +1096,7 @@
    "hit": false,
    "falsePositive": false,
    "n": 0,
-   "ms": 942,
+   "ms": 128,
    "gates": [
     {
      "category": "search",
@@ -1142,7 +1142,7 @@
    "hit": true,
    "falsePositive": false,
    "n": 0,
-   "ms": 927,
+   "ms": 129,
    "gates": [
     {
      "category": "search",
@@ -1188,7 +1188,7 @@
    "hit": false,
    "falsePositive": true,
    "n": 2,
-   "ms": 1485,
+   "ms": 215,
    "gates": [
     {
      "category": "search",
@@ -1230,7 +1230,7 @@
     {
      "category": "execute",
      "tool": "uv",
-     "p": 0.5062
+     "p": 0.5061
     },
     {
      "category": "vcs",
@@ -1250,7 +1250,7 @@
    "hit": false,
    "falsePositive": true,
    "n": 3,
-   "ms": 1364,
+   "ms": 197,
    "gates": [
     {
      "category": "search",
@@ -1287,17 +1287,17 @@
     {
      "category": "edit",
      "tool": "edit",
-     "p": 0.3692
+     "p": 0.368
     },
     {
      "category": "vcs",
      "tool": "gh",
-     "p": 0.5122
+     "p": 0.5189
     },
     {
      "category": "data",
      "tool": "yq",
-     "p": 0.4547
+     "p": 0.4577
     }
    ],
    "err": null
@@ -1312,7 +1312,7 @@
    "hit": false,
    "falsePositive": true,
    "n": 1,
-   "ms": 1129,
+   "ms": 176,
    "gates": [
     {
      "category": "search",
@@ -1364,7 +1364,7 @@
    "hit": true,
    "falsePositive": false,
    "n": 0,
-   "ms": 937,
+   "ms": 126,
    "gates": [
     {
      "category": "search",
@@ -1410,7 +1410,7 @@
    "hit": false,
    "falsePositive": false,
    "n": 1,
-   "ms": 1055,
+   "ms": 161,
    "gates": [
     {
      "category": "search",
@@ -1419,7 +1419,7 @@
     },
     {
      "category": "read",
-     "p": 0.1326,
+     "p": 0.1325,
      "passed": false
     },
     {
@@ -1429,17 +1429,17 @@
     },
     {
      "category": "execute",
-     "p": 0.3004,
+     "p": 0.2999,
      "passed": false
     },
     {
      "category": "vcs",
-     "p": 0.6201,
+     "p": 0.6222,
      "passed": true
     },
     {
      "category": "data",
-     "p": 0.3048,
+     "p": 0.3051,
      "passed": false
     }
    ],
@@ -1465,7 +1465,7 @@
    "hit": false,
    "falsePositive": false,
    "n": 0,
-   "ms": 994,
+   "ms": 136,
    "gates": [
     {
      "category": "search",
@@ -1511,7 +1511,7 @@
    "hit": true,
    "falsePositive": false,
    "n": 0,
-   "ms": 959,
+   "ms": 126,
    "gates": [
     {
      "category": "search",
@@ -1557,7 +1557,7 @@
    "hit": false,
    "falsePositive": true,
    "n": 1,
-   "ms": 1027,
+   "ms": 157,
    "gates": [
     {
      "category": "search",
@@ -1609,7 +1609,7 @@
    "hit": false,
    "falsePositive": true,
    "n": 1,
-   "ms": 975,
+   "ms": 156,
    "gates": [
     {
      "category": "search",
@@ -1646,7 +1646,7 @@
     {
      "category": "vcs",
      "tool": "gh",
-     "p": 0.3952
+     "p": 0.3988
     }
    ],
    "err": null
@@ -1661,11 +1661,11 @@
    "hit": false,
    "falsePositive": true,
    "n": 1,
-   "ms": 1017,
+   "ms": 155,
    "gates": [
     {
      "category": "search",
-     "p": 0.2955,
+     "p": 0.2947,
      "passed": false
     },
     {
@@ -1685,7 +1685,7 @@
     },
     {
      "category": "vcs",
-     "p": 0.5818,
+     "p": 0.5822,
      "passed": true
     },
     {
@@ -1713,7 +1713,7 @@
    "hit": false,
    "falsePositive": true,
    "n": 1,
-   "ms": 986,
+   "ms": 154,
    "gates": [
     {
      "category": "search",
@@ -1750,7 +1750,7 @@
     {
      "category": "vcs",
      "tool": "gh",
-     "p": 0.4291
+     "p": 0.4349
     }
    ],
    "err": null
@@ -1765,7 +1765,7 @@
    "hit": true,
    "falsePositive": false,
    "n": 0,
-   "ms": 912,
+   "ms": 124,
    "gates": [
     {
      "category": "search",
@@ -1811,7 +1811,7 @@
    "hit": false,
    "falsePositive": true,
    "n": 1,
-   "ms": 981,
+   "ms": 156,
    "gates": [
     {
      "category": "search",
@@ -1848,7 +1848,7 @@
     {
      "category": "vcs",
      "tool": "gh",
-     "p": 0.4429
+     "p": 0.445
     }
    ],
    "err": null

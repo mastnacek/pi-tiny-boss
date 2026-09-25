@@ -5,7 +5,15 @@
  * typed failure — never a half-loaded ONNX session.
  */
 
-export { EngineUnavailableError, createLayaEngine, threadCount } from "./laya.js";
+export {
+	EngineUnavailableError,
+	createLayaEngine,
+	parseProvider,
+	providerOrder,
+	recommendedThreads,
+	threadCount,
+	type ProviderChoice,
+} from "./laya.js";
 export {
 	BUNDLE_FILES,
 	BUNDLE_BYTES_APPROX,
@@ -66,6 +74,7 @@ export async function getEngine(
 	try {
 		const engine = await createLayaEngine();
 		state.engine = engine;
+		state.engineProvider = engine.provider;
 		state.engineLoadMs = Date.now() - started;
 		state.degraded = null;
 		state.lastError = null;
@@ -93,6 +102,7 @@ export async function warmEngine(state: TinyBossState): Promise<EngineResolution
 export async function releaseEngine(state: TinyBossState): Promise<void> {
 	const engine = state.engine;
 	state.engine = null;
+	state.engineProvider = null;
 	if (!engine) return;
 	try {
 		await engine.close();
