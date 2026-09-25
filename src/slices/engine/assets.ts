@@ -160,8 +160,17 @@ export function activeLayout(): BundleLayout {
 	return defaultLayout();
 }
 
+/** Absolute path of one bundle file, under whichever directory is in effect. */
 export function assetPath(file: string): string {
 	return join(bundleDir(), file);
+}
+
+/** Which assets are present, and how big they are. */
+export interface AssetStatus {
+	name: string;
+	file: string;
+	present: boolean;
+	bytes: number;
 }
 
 async function exists(path: string): Promise<boolean> {
@@ -173,27 +182,35 @@ async function exists(path: string): Promise<boolean> {
 	}
 }
 
-/** Which assets are present, and how big they are. */
-export interface AssetStatus {
-	name: string;
-	file: string;
-	present: boolean;
-	bytes: number;
-}
-
+/**
+ * Which assets are present, how big they are, and what they are worth.
+ *
+ * The *required* list decides readiness, but it is not the whole story on disk: an
+ * unrecorded export needs only the core files, and its multi-gigabyte
+ * `laya.onnx.data` would then be missing from the report — `/tiny-boss status`
+ * would describe a 1.7 GB cache as 3.6 MB. So any further published-manifest file
+ * that is actually present is reported alongside, as a row that is by definition
+ * present and therefore cannot affect `assetsReady()`.
+ */
 export async function assetStatus(): Promise<AssetStatus[]> {
+	const required = bundleFiles();
+	const extra = BUNDLE_FILES.filter((file) => !required.includes(file));
 	const out: AssetStatus[] = [];
-	for (const file of bundleFiles()) {
+	for (const file of [...required, ...extra]) {
 		const path = assetPath(file);
+		const present = await exists(path);
+		// An optional extra that is absent is not a row: it is not missing, it is
+		// simply a file this bundle shape does not have.
+		if (!present && !required.includes(file)) continue;
 		let bytes = 0;
-		if (await exists(path)) {
+		if (present) {
 			try {
 				bytes = (await stat(path)).size;
 			} catch {
 				bytes = 0;
 			}
 		}
-		out.push({ name: file, file, present: bytes > 0, bytes });
+		out.push({ name: file, file, present, bytes });
 	}
 	return out;
 }

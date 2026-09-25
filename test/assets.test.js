@@ -297,8 +297,12 @@ test("a complete bundle is a cache hit and reports its real size", async () => {
 		await withEnv({ ...emptyState(dir), PI_TINY_BOSS_MODEL_DIR: dir }, async () => {
 			for (const file of BUNDLE_FILES) writeFile(file, dir);
 			assert.equal(await assetsReady(), true);
-			assert.equal(await cacheBytes(), CORE_FILES.length * 4);
+			// Every file on disk is reported, not only the required ones: the
+			// report is what `/tiny-boss status` shows, and a bundle's .data is
+			// gigabytes that must not vanish from that number.
+			assert.equal(await cacheBytes(), BUNDLE_FILES.length * 4);
 			const status = await assetStatus();
+			assert.equal(status.length, BUNDLE_FILES.length);
 			assert.equal(status.every((s) => s.present && s.bytes === 4), true);
 		});
 	} finally {
