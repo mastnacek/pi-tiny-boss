@@ -118,6 +118,41 @@ request: `assetsReady()` is verified from disk before `Laya.load()` is called wi
 an explicit `modelDir`, because the library's own `ensureBundle` re-checks each
 file against Hugging Face even on a warm cache.
 
+### Choosing a checkpoint
+
+The bundle layout is `@receptron/laya`'s, and this plugin follows it: a repo, a
+revision, and an optional subfolder.
+
+```
+$cacheDir/$repo-with--dashes/$revision[/$subfolder]/
+  laya.onnx  laya.onnx.data  laya_config.json  tokenizer/…
+```
+
+| Variable | Set by | Effect |
+| --- | --- | --- |
+| `LAYA_CACHE` | the library | moves the whole cache root |
+| `PI_TINY_BOSS_SUBFOLDER` | this plugin | selects a checkpoint published under a subfolder |
+| `PI_TINY_BOSS_MODEL_DIR` / `LAYA_MODEL_DIR` | this plugin | points at a directory outright, ignoring the layout |
+| `HF_TOKEN` | the library | for a private repo |
+
+The upstream repo publishes **only** the English checkpoint at its root, so the
+default is the root and no subfolder is needed. `PI_TINY_BOSS_SUBFOLDER` exists
+because the library takes `subfolder` as a call option and has no variable for it,
+and the prompt path has no way to pass options through — without it the plugin
+would be structurally unable to reach any checkpoint that is not at a repo root.
+Changing it invalidates the fetch record, so the next `/tiny-boss status` reports
+`MISSING` and asks for a fetch rather than silently loading the previous
+checkpoint.
+
+A bundle you exported yourself needs no subfolder at all — point
+`PI_TINY_BOSS_MODEL_DIR` at the directory `export/export_onnx.py` wrote and there
+is nothing to fetch:
+
+```bash
+PI_TINY_BOSS_SUBFOLDER=multilingual /tiny-boss fetch   # a published variant
+PI_TINY_BOSS_MODEL_DIR=./my-export /tiny-boss warm      # your own export
+```
+
 ## Commands
 
 | Command | Effect |
@@ -235,7 +270,7 @@ Vertical slices, one dependency direction:
 
 ```
 index.ts                 composition root — the only multi-slice importer
-├── slices/engine/       Laya ONNX session, offline cache gate, fetch
+├── slices/engine/       Laya ONNX session, bundle layout, offline cache gate, fetch
 ├── slices/planner/      two-pass policy, validation, prompt rendering (pure)
 ├── slices/discovery/    PATH probe -> ToolSpec the decision model may name
 ├── slices/hook/         the `input` listener, planner injected
@@ -249,7 +284,9 @@ questions)` method — so the whole test suite runs against a fake and never
 downloads 1.6 GB. `shared/types.ts` declares Laya's question and answer shapes
 structurally and `slices/engine/laya.ts` is the single place that casts to the real
 ones, which keeps every other slice and every test independent of a native
-dependency being loadable. 61 tests, no model download.
+dependency being loadable. 84 tests, no model download — and the one test that
+does import the library skips rather than fails when the native binding is broken,
+which is the same property the plugin itself has.
 
 ## Measured quality
 
@@ -341,8 +378,10 @@ root — there is no `multilingual` and no `typed-decisions` subfolder, despite 
 library's README naming `subfolder: "multilingual"` as an option. Exporting the
 fine-tuned [`laya-typed-decisions`](https://huggingface.co/convaiinnovations/laya-typed-decisions)
 checkpoint means running `@receptron/laya`'s `export/export_onnx.py` yourself
-(Python, torch, onnxscript), then pointing `PI_TINY_BOSS_MODEL_DIR` at the result.
-That is the experiment this harness exists to evaluate:
+(Python, torch, onnxscript). Then either point `PI_TINY_BOSS_MODEL_DIR` straight at
+the output, or publish it under a subfolder the way the library documents and set
+`PI_TINY_BOSS_SUBFOLDER` to match. That is the experiment this harness exists to
+evaluate:
 
 ```bash
 npm run eval          # writes eval/out.json, scores it, writes eval/gates.json
@@ -361,9 +400,11 @@ comparable rather than a fresh claim.
   comfortably.
 - **The prompt is truncated at 512 tokens** for the English checkpoint, after the
   question header. Laya sees the opening of a long prompt, not all of it.
-- **English only.** The multilingual checkpoint (`laya-multilingual`, 322M, 1024
-  to 8192 context) exists but is not wired up; `/tiny-boss fetch` pulls the English
-  bundle.
+- **English by default.** The multilingual checkpoint (`laya-multilingual`, 322M,
+  1024 to 8192 context) is reachable through `PI_TINY_BOSS_SUBFOLDER`, but may not
+  be *published* — upstream serves only the English bundle, so selecting it means
+  exporting it yourself first. The English checkpoint's 512-token state limit and
+  its routing assumptions are what the default configuration runs on.
 - **No arguments are proposed.** Laya picks tools, not invocations. Everything
   renders as a bare tool name except the catalogue binaries, which carry a
   ready-made example command.
@@ -372,11 +413,18 @@ comparable rather than a fresh claim.
 - **Buckets are curated, not discovered from pi.** Pi does not expose the live tool
   registry to extensions, so the built-in seven are hand-written and the rest is
   probed from your own PATH.
-- **The plugin does not own the weight cache.** `@receptron/laya` owns the layout
-  and the freshness check; this plugin mirrors the path so the offline gate can run
-  without importing a native module, and records the real directory on `fetch`.
-  `PI_TINY_BOSS_MODEL_DIR` / `LAYA_MODEL_DIR` overrides any of it — that is also
-  the supported way to point at your own `export/export_onnx.py` output.
+- **The plugin does not own the weight cache.** `@receptron/laya` owns the layout,
+  the download and the freshness check. This plugin *mirrors* the directory rule
+  because `import "@receptron/laya"` loads a native ONNX binding and the offline
+  gate has to run before anything may load. A mirror is only acceptable if it is
+  verifiable, so: the cache root, repo id and file list are cross-checked against
+  the library's own exports by `test/layout.test.js` whenever the package is
+  loadable, and `/tiny-boss fetch` records the directory **and the file list the
+  library actually returned**. The record is preferred over the mirror, so an
+  upstream layout change is corrected by the next fetch instead of silently
+  pointing the gate at the wrong directory. The one thing the mirror does not
+  reproduce is the trailing path separator of the library's return value — same
+  directory, and `path.resolve` in `Laya.load` normalises it.
 - **Subagent sessions are skipped** by design — a delegation guard keeps child
   sessions from double-planning.
 

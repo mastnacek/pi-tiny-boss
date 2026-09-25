@@ -22,11 +22,14 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { createInitialState } from "./src/shared/state.js";
 import {
+	activeLayout,
 	assetStatus,
 	assetsReady,
 	BUNDLE_BYTES_APPROX,
 	bundleDir,
+	bundleFiles,
 	cacheBytes,
+	describeLayout,
 	fetchBundle,
 	getEngine,
 	layaCacheDir,
@@ -95,10 +98,10 @@ export default function (pi: ExtensionAPI): void {
 		fetchAssets: async (onProgress) => {
 			onProgress(`downloading the Laya ONNX bundle (~${mb(BUNDLE_BYTES_APPROX)}) into ${layaCacheDir()}`);
 			const last = new Map<string, string>();
-			const { dir, resumed } = await fetchBundle((progress) => {
+			const { dir, layout, files, resumed } = await fetchBundle((progress) => {
 				const line = `${progress.file} ${mb(progress.received)}${progress.total ? ` / ${mb(progress.total)}` : ""}`;
-				// One notification per file per megabyte, not per chunk: the fetch
-				// streams a 1.6 GB file and a notify per chunk would drown the TUI.
+				// One notification per file per 8 MB, not per chunk: the fetch streams a
+				// 1.6 GB file and a notify per chunk would drown the TUI.
 				const key = `${progress.file}:${Math.floor(progress.received / (8 * 1024 * 1024))}`;
 				if (last.get(progress.file) === key) return;
 				last.set(progress.file, key);
@@ -107,7 +110,9 @@ export default function (pi: ExtensionAPI): void {
 			const status = await assetStatus();
 			const lines = [
 				resumed ? "the bundle was already complete; verified it" : "bundle downloaded",
-				`  dir: ${dir}`,
+				`  checkpoint: ${describeLayout(layout)}`,
+				`  dir:        ${dir}`,
+				`  files:      ${files.length} (the library's own list, recorded)`,
 				...status.map((s) => `  ${s.name} ${mb(s.bytes)}`),
 				"",
 				"Run /tiny-boss warm to load the ONNX session now, or the next prompt",
@@ -117,7 +122,7 @@ export default function (pi: ExtensionAPI): void {
 		},
 		warmEngine: async () => {
 			if (!(await assetsReady())) {
-				return "Laya ONNX bundle is not cached — run /tiny-boss fetch first (~1.6 GB, once)";
+				return `Laya ONNX bundle is not cached for ${describeLayout(activeLayout())} — run /tiny-boss fetch first (~1.6 GB, once)`;
 			}
 			const resolution = await warmEngine(state);
 			if (!resolution.ok) return `warm failed — ${resolution.message}`;
@@ -127,7 +132,11 @@ export default function (pi: ExtensionAPI): void {
 			const ready = await assetsReady();
 			const bytes = await cacheBytes();
 			const config = ready ? await readConfigSummary() : "n/a";
-			return `${ready ? "ready" : "MISSING"} ${mb(bytes)} in ${bundleDir()} (${config})`;
+			return [
+				`${ready ? "ready" : "MISSING"} — ${bundleFiles().length} files, ${mb(bytes)} (${config})`,
+				`            ${describeLayout(activeLayout())}`,
+				`            ${bundleDir()}`,
+			].join("\n");
 		},
 		toolReport: () => {
 			const found = new Set(detected.map((d) => d.binary));

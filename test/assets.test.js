@@ -10,7 +10,9 @@ import {
 	assetsReady,
 	BUNDLE_FILES,
 	bundleDir,
+	bundleFiles,
 	cacheBytes,
+	defaultLayout,
 	layaCacheDir,
 	mirroredBundleDir,
 	stateDir,
@@ -141,6 +143,71 @@ test("an empty record file falls back to the mirror instead of an empty path", a
 		writeFileSync(join(state.dir, "bundle-dir.txt"), "\n", "utf8");
 		await withEnv({ ...emptyState(state.dir) }, async () => {
 			assert.equal(bundleDir(), mirroredBundleDir());
+		});
+	} finally {
+		state.cleanup();
+	}
+});
+
+/** Write the structured record a real fetch leaves behind. */
+function writeRecord(statePath, over = {}) {
+	mkdirSync(statePath, { recursive: true });
+	const record = {
+		dir: join(statePath, "bundle"),
+		files: ["laya.onnx", "laya.onnx.data", "laya_config.json", "tokenizer/tokenizer.json", "tokenizer/tokenizer_config.json"],
+		layout: defaultLayout(),
+		...over,
+	};
+	writeFileSync(join(statePath, "bundle.json"), JSON.stringify(record), "utf8");
+	return record;
+}
+
+test("a fetch record is the authority on both the directory and the file list", async () => {
+	const state = tempDir();
+	try {
+		const record = writeRecord(state.dir);
+		await withEnv({ ...emptyState(state.dir) }, async () => {
+			assert.equal(bundleDir(), record.dir, "the gate must inspect what the library actually returned");
+			assert.deepEqual([...bundleFiles()], record.files, "the library owns what a bundle contains");
+			assert.equal(assetPath("laya.onnx"), join(record.dir, "laya.onnx"));
+		});
+	} finally {
+		state.cleanup();
+	}
+});
+
+test("the recorded file list is what decides cache completeness, not the bundled constant", async () => {
+	const state = tempDir();
+	try {
+		// A future bundle with one extra file: the constant knows nothing about it,
+		// and reporting ready without it would load an incomplete session.
+		const extra = "decoder.onnx";
+		const record = writeRecord(state.dir, { files: [...BUNDLE_FILES, extra] });
+		mkdirSync(record.dir, { recursive: true });
+		for (const file of BUNDLE_FILES) {
+			const path = join(record.dir, file);
+			mkdirSync(dirname(path), { recursive: true });
+			writeFileSync(path, "data");
+		}
+		await withEnv({ ...emptyState(state.dir) }, async () => {
+			assert.equal(await assetsReady(), false, `${extra} is missing, so the bundle is incomplete`);
+			assert.equal((await assetStatus()).length, BUNDLE_FILES.length + 1);
+		});
+	} finally {
+		state.cleanup();
+	}
+});
+
+test("a record for a different checkpoint is ignored, so a layout change is not reported ready", async () => {
+	const state = tempDir();
+	try {
+		// Fetched the English root, then the operator switched to a subfolder. The
+		// record describes a bundle that is not the one now configured.
+		writeRecord(state.dir, { dir: join(state.dir, "english"), layout: { ...defaultLayout(), subfolder: null } });
+		await withEnv({ ...emptyState(state.dir), PI_TINY_BOSS_SUBFOLDER: "typed-decisions" }, async () => {
+			assert.equal(bundleDir(), mirroredBundleDir(), "the stale record must not win");
+			assert.ok(bundleDir().endsWith("typed-decisions"), `wrong checkpoint: ${bundleDir()}`);
+			assert.equal(await assetsReady(), false, "a fetch is required for the new checkpoint");
 		});
 	} finally {
 		state.cleanup();

@@ -8,18 +8,25 @@
 export { EngineUnavailableError, createLayaEngine, threadCount } from "./laya.js";
 export {
 	BUNDLE_FILES,
-	BUNDLE_REPO,
 	BUNDLE_BYTES_APPROX,
+	DEFAULT_REPO,
+	DEFAULT_REVISION,
+	activeLayout,
 	assetPath,
 	assetStatus,
 	assetsReady,
 	bundleDir,
+	bundleDirFor,
+	bundleFiles,
 	cacheBytes,
+	defaultLayout,
+	describeLayout,
 	fetchBundle,
 	layaCacheDir,
 	mirroredBundleDir,
 	readConfigSummary,
 	stateDir,
+	type BundleLayout,
 	type FetchProgress,
 } from "./assets.js";
 
