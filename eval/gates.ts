@@ -15,6 +15,7 @@
  */
 
 import { readFileSync, writeFileSync } from "node:fs";
+import { checkpointSlug, outPath } from "./paths.js";
 import { CATEGORY_ORDER } from "../src/shared/decision-schema.js";
 import type { ToolCategory } from "../src/shared/types.js";
 
@@ -45,7 +46,7 @@ interface Case {
 	gates: Array<{ category: ToolCategory; p: number; passed: boolean }>;
 }
 
-const payload = JSON.parse(readFileSync(new URL("./out.json", import.meta.url), "utf8")) as {
+const payload = JSON.parse(readFileSync(outPath("out"), "utf8")) as {
 	out: Case[];
 	silent: Array<{ prompt: string; passesGates: number }>;
 };
@@ -142,7 +143,7 @@ console.log(`\nshort inputs  ${leaked.length}/${payload.silent.length} still pas
 if (leaked.length > 0) console.log(`              ${leaked.map((s) => JSON.stringify(s.prompt)).join(", ")}`);
 
 writeFileSync(
-	new URL("./gates.json", import.meta.url),
+	outPath("gates"),
 	JSON.stringify({ overall: { ...overall, fp, fn }, byCategory: Object.fromEntries(byCategory), sweep }, null, 1),
 );
-console.log("\nwrote eval/gates.json");
+console.log(`\nwrote eval/gates.${checkpointSlug()}.json`);

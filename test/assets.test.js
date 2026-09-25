@@ -4,6 +4,13 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
+/**
+ * The files a bundle must have to be loadable, whatever produced it.
+ * Mirrors `CORE_BUNDLE_FILES` in the slice; the two tests that depend on the
+ * strict five-file list use `BUNDLE_FILES` explicitly.
+ */
+const CORE_FILES = ["laya.onnx", "laya_config.json", "tokenizer/tokenizer.json", "tokenizer/tokenizer_config.json"];
+
 import {
 	assetPath,
 	assetStatus,
@@ -62,18 +69,21 @@ test("the bundle is the five files one exported checkpoint consists of", () => {
 });
 
 /**
- * Every test here pins its own state directory.
+ * Every test here pins its own state directory *and* its own cache root.
  *
- * `bundleDir()` prefers the path a real `/tiny-boss fetch` recorded, which on a
- * machine that has run one is the user's actual cache — so a test that only sets
- * `LAYA_CACHE` would read the operator's bundle and assert against it. That is a
- * test that passes or fails depending on whether the feature was ever used, which
- * is worse than no test. Pinning `PI_TINY_BOSS_STATE_DIR` removes the dependency.
+ * `bundleDir()` prefers the path a real `/tiny-boss fetch` recorded, and falls
+ * back to a path under the real cache root — so a test that pinned neither would
+ * read the operator's actual bundle and assert against it. That is a test that
+ * passes or fails depending on whether the feature was ever used on this machine,
+ * which is worse than no test. Creating a local export under the real cache (which
+ * is exactly what running the export pipeline does) was enough to reintroduce
+ * that, so `LAYA_CACHE` is pinned here for every test rather than per test.
  */
 const emptyState = (stateDirPath) => ({
 	PI_TINY_BOSS_MODEL_DIR: undefined,
 	LAYA_MODEL_DIR: undefined,
 	PI_TINY_BOSS_STATE_DIR: stateDirPath,
+	LAYA_CACHE: stateDirPath,
 });
 
 test("an explicit model directory wins over everything else", async () => {
@@ -149,13 +159,20 @@ test("an empty record file falls back to the mirror instead of an empty path", a
 	}
 });
 
-/** Write the structured record a real fetch leaves behind. */
+/**
+ * Write the structured record a real fetch leaves behind.
+ *
+ * The layout's cache root is forced to `statePath`, because a test pins both
+ * `PI_TINY_BOSS_STATE_DIR` and `LAYA_CACHE` to that one temp directory: a record
+ * written from the ambient env would carry the operator's real cache root and then
+ * be rejected by `recordMatches` for describing a different layout.
+ */
 function writeRecord(statePath, over = {}) {
 	mkdirSync(statePath, { recursive: true });
 	const record = {
 		dir: join(statePath, "bundle"),
 		files: ["laya.onnx", "laya.onnx.data", "laya_config.json", "tokenizer/tokenizer.json", "tokenizer/tokenizer_config.json"],
-		layout: defaultLayout(),
+		layout: { ...defaultLayout(), cacheDir: statePath },
 		...over,
 	};
 	writeFileSync(join(statePath, "bundle.json"), JSON.stringify(record), "utf8");
@@ -221,7 +238,7 @@ test("an empty directory is not a cache hit", async () => {
 			assert.equal(await assetsReady(), false);
 			assert.equal(await cacheBytes(), 0);
 			const status = await assetStatus();
-			assert.equal(status.length, BUNDLE_FILES.length);
+			assert.equal(status.length, CORE_FILES.length);
 			assert.equal(status.every((s) => !s.present), true);
 		});
 	} finally {
@@ -229,15 +246,45 @@ test("an empty directory is not a cache hit", async () => {
 	}
 });
 
+test("an unrecorded bundle needs the graph, config and tokenizer, but not .data", async () => {
+	const { dir, cleanup } = tempDir();
+	try {
+		// A self-contained export is a legitimate shape: the library's own
+		// export_onnx.py asks for external_data=False, and only a large checkpoint
+		// ends up with a .data sidecar. Demanding one would refuse a working bundle.
+		for (const file of CORE_FILES) writeFile(file, dir);
+		await withEnv({ ...emptyState(dir), PI_TINY_BOSS_MODEL_DIR: dir }, async () => {
+			assert.equal(await assetsReady(), true, "a single-file export must be usable");
+			assert.equal((await assetStatus()).length, CORE_FILES.length);
+		});
+	} finally {
+		cleanup();
+	}
+});
+
+test("a recorded bundle is still held to the library's full file list", async () => {
+	const state = tempDir();
+	try {
+		// The record is what protects a *fetched* bundle, where a missing .data
+		// means a truncated download rather than a different export shape.
+		await withEnv({ ...emptyState(state.dir) }, async () => {
+			const record = writeRecord(state.dir);
+			for (const file of CORE_FILES) writeFile(file, record.dir);
+			assert.equal(await assetsReady(), false, "laya.onnx.data is missing from a recorded bundle");
+		});
+	} finally {
+		state.cleanup();
+	}
+});
+
 test("a half-downloaded bundle is not a cache hit either", async () => {
 	const { dir, cleanup } = tempDir();
 	try {
 		await withEnv({ ...emptyState(dir), PI_TINY_BOSS_MODEL_DIR: dir }, async () => {
-			// Four of five files present: the exact shape an interrupted fetch
-			// would leave if the library did not rename atomically.
-			for (const file of BUNDLE_FILES.slice(0, -1)) writeFile(file, dir);
+			// Every core file but one: the shape an interrupted copy would leave.
+			for (const file of CORE_FILES.slice(0, -1)) writeFile(file, dir);
 			assert.equal(await assetsReady(), false);
-			assert.equal((await assetStatus()).filter((s) => s.present).length, BUNDLE_FILES.length - 1);
+			assert.equal((await assetStatus()).filter((s) => s.present).length, CORE_FILES.length - 1);
 		});
 	} finally {
 		cleanup();
@@ -250,7 +297,7 @@ test("a complete bundle is a cache hit and reports its real size", async () => {
 		await withEnv({ ...emptyState(dir), PI_TINY_BOSS_MODEL_DIR: dir }, async () => {
 			for (const file of BUNDLE_FILES) writeFile(file, dir);
 			assert.equal(await assetsReady(), true);
-			assert.equal(await cacheBytes(), BUNDLE_FILES.length * 4);
+			assert.equal(await cacheBytes(), CORE_FILES.length * 4);
 			const status = await assetStatus();
 			assert.equal(status.every((s) => s.present && s.bytes === 4), true);
 		});

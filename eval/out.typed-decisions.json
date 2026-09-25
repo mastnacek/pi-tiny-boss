@@ -1,0 +1,2270 @@
+{
+ "tools": 21,
+ "system": 14,
+ "groups": [
+  {
+   "category": "search",
+   "options": 6
+  },
+  {
+   "category": "read",
+   "options": 2
+  },
+  {
+   "category": "edit",
+   "options": 3
+  },
+  {
+   "category": "execute",
+   "options": 4
+  },
+  {
+   "category": "vcs",
+   "options": 3
+  },
+  {
+   "category": "data",
+   "options": 3
+  }
+ ],
+ "out": [
+  {
+   "prompt": "find where the pi.on subscriptions are declared",
+   "ideal": [
+    "grep",
+    "rg",
+    "find",
+    "fd"
+   ],
+   "expectsNothing": false,
+   "first": "(none)",
+   "hit": false,
+   "falsePositive": false,
+   "n": 0,
+   "ms": 254,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.3688,
+     "passed": false
+    },
+    {
+     "category": "read",
+     "p": 0.4395,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.3443,
+     "passed": false
+    },
+    {
+     "category": "execute",
+     "p": 0.4086,
+     "passed": false
+    },
+    {
+     "category": "vcs",
+     "p": 0.3765,
+     "passed": false
+    },
+    {
+     "category": "data",
+     "p": 0.3158,
+     "passed": false
+    }
+   ],
+   "answer": [],
+   "err": null
+  },
+  {
+   "prompt": "search for every TODO in the project and list the files",
+   "ideal": [
+    "grep",
+    "rg",
+    "find",
+    "fd"
+   ],
+   "expectsNothing": false,
+   "first": "uv",
+   "hit": false,
+   "falsePositive": false,
+   "n": 3,
+   "ms": 257,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.5279,
+     "passed": true
+    },
+    {
+     "category": "read",
+     "p": 0.4325,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.4666,
+     "passed": false
+    },
+    {
+     "category": "execute",
+     "p": 0.5496,
+     "passed": true
+    },
+    {
+     "category": "vcs",
+     "p": 0.616,
+     "passed": true
+    },
+    {
+     "category": "data",
+     "p": 0.5593,
+     "passed": true
+    }
+   ],
+   "answer": [
+    {
+     "category": "search",
+     "tool": "find",
+     "p": 0.3016
+    },
+    {
+     "category": "execute",
+     "tool": "uv",
+     "p": 0.3634
+    },
+    {
+     "category": "vcs",
+     "tool": "gh",
+     "p": 0.4936
+    },
+    {
+     "category": "data",
+     "tool": "yq",
+     "p": 0.4205
+    }
+   ],
+   "err": null
+  },
+  {
+   "prompt": "locate the file that defines the Foo class",
+   "ideal": [
+    "grep",
+    "rg",
+    "find",
+    "fd"
+   ],
+   "expectsNothing": false,
+   "first": "fd",
+   "hit": true,
+   "falsePositive": false,
+   "n": 4,
+   "ms": 239,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.5816,
+     "passed": true
+    },
+    {
+     "category": "read",
+     "p": 0.561,
+     "passed": true
+    },
+    {
+     "category": "edit",
+     "p": 0.637,
+     "passed": true
+    },
+    {
+     "category": "execute",
+     "p": 0.4691,
+     "passed": false
+    },
+    {
+     "category": "vcs",
+     "p": 0.5252,
+     "passed": true
+    },
+    {
+     "category": "data",
+     "p": 0.472,
+     "passed": false
+    }
+   ],
+   "answer": [
+    {
+     "category": "search",
+     "tool": "fd",
+     "p": 0.3433
+    },
+    {
+     "category": "read",
+     "tool": "read",
+     "p": 0.6675
+    },
+    {
+     "category": "edit",
+     "tool": "write",
+     "p": 0.3959
+    },
+    {
+     "category": "vcs",
+     "tool": "gh",
+     "p": 0.4545
+    }
+   ],
+   "err": null
+  },
+  {
+   "prompt": "which files mention process.env.PATH",
+   "ideal": [
+    "grep",
+    "rg"
+   ],
+   "expectsNothing": false,
+   "first": "(none)",
+   "hit": false,
+   "falsePositive": false,
+   "n": 0,
+   "ms": 129,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.4767,
+     "passed": false
+    },
+    {
+     "category": "read",
+     "p": 0.4057,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.4331,
+     "passed": false
+    },
+    {
+     "category": "execute",
+     "p": 0.4759,
+     "passed": false
+    },
+    {
+     "category": "vcs",
+     "p": 0.4765,
+     "passed": false
+    },
+    {
+     "category": "data",
+     "p": 0.3911,
+     "passed": false
+    }
+   ],
+   "answer": [],
+   "err": null
+  },
+  {
+   "prompt": "read the plan schema and explain it",
+   "ideal": [
+    "read"
+   ],
+   "expectsNothing": false,
+   "first": "gh",
+   "hit": false,
+   "falsePositive": false,
+   "n": 1,
+   "ms": 183,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.4847,
+     "passed": false
+    },
+    {
+     "category": "read",
+     "p": 0.303,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.358,
+     "passed": false
+    },
+    {
+     "category": "execute",
+     "p": 0.4751,
+     "passed": false
+    },
+    {
+     "category": "vcs",
+     "p": 0.5773,
+     "passed": true
+    },
+    {
+     "category": "data",
+     "p": 0.4599,
+     "passed": false
+    }
+   ],
+   "answer": [
+    {
+     "category": "vcs",
+     "tool": "gh",
+     "p": 0.4661
+    }
+   ],
+   "err": null
+  },
+  {
+   "prompt": "what does this function do",
+   "ideal": [
+    "read"
+   ],
+   "expectsNothing": false,
+   "first": "gh",
+   "hit": false,
+   "falsePositive": false,
+   "n": 3,
+   "ms": 253,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.593,
+     "passed": true
+    },
+    {
+     "category": "read",
+     "p": 0.4069,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.5292,
+     "passed": true
+    },
+    {
+     "category": "execute",
+     "p": 0.558,
+     "passed": true
+    },
+    {
+     "category": "vcs",
+     "p": 0.6635,
+     "passed": true
+    },
+    {
+     "category": "data",
+     "p": 0.6547,
+     "passed": true
+    }
+   ],
+   "answer": [
+    {
+     "category": "search",
+     "tool": "fd",
+     "p": 0.2806
+    },
+    {
+     "category": "edit",
+     "tool": "write",
+     "p": 0.3664
+    },
+    {
+     "category": "execute",
+     "tool": "uv",
+     "p": 0.337
+    },
+    {
+     "category": "vcs",
+     "tool": "gh",
+     "p": 0.4436
+    },
+    {
+     "category": "data",
+     "tool": "jq",
+     "p": 0.3841
+    }
+   ],
+   "err": null
+  },
+  {
+   "prompt": "explain how the compaction threshold works",
+   "ideal": [
+    "read",
+    "grep",
+    "rg"
+   ],
+   "expectsNothing": false,
+   "first": "(none)",
+   "hit": false,
+   "falsePositive": false,
+   "n": 0,
+   "ms": 127,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.3076,
+     "passed": false
+    },
+    {
+     "category": "read",
+     "p": 0.2489,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.2815,
+     "passed": false
+    },
+    {
+     "category": "execute",
+     "p": 0.3071,
+     "passed": false
+    },
+    {
+     "category": "vcs",
+     "p": 0.3575,
+     "passed": false
+    },
+    {
+     "category": "data",
+     "p": 0.3975,
+     "passed": false
+    }
+   ],
+   "answer": [],
+   "err": null
+  },
+  {
+   "prompt": "show me the config file contents",
+   "ideal": [
+    "read",
+    "cat",
+    "bat"
+   ],
+   "expectsNothing": false,
+   "first": "read",
+   "hit": true,
+   "falsePositive": false,
+   "n": 2,
+   "ms": 869,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.4319,
+     "passed": false
+    },
+    {
+     "category": "read",
+     "p": 0.6157,
+     "passed": true
+    },
+    {
+     "category": "edit",
+     "p": 0.3922,
+     "passed": false
+    },
+    {
+     "category": "execute",
+     "p": 0.448,
+     "passed": false
+    },
+    {
+     "category": "vcs",
+     "p": 0.5594,
+     "passed": true
+    },
+    {
+     "category": "data",
+     "p": 0.3182,
+     "passed": false
+    }
+   ],
+   "answer": [
+    {
+     "category": "read",
+     "tool": "read",
+     "p": 0.5908
+    },
+    {
+     "category": "vcs",
+     "tool": "gh",
+     "p": 0.4563
+    }
+   ],
+   "err": null
+  },
+  {
+   "prompt": "fix the failing test in gate.test.js",
+   "ideal": [
+    "read",
+    "edit"
+   ],
+   "expectsNothing": false,
+   "first": "uv",
+   "hit": false,
+   "falsePositive": false,
+   "n": 4,
+   "ms": 214,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.4785,
+     "passed": false
+    },
+    {
+     "category": "read",
+     "p": 0.2784,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.5086,
+     "passed": true
+    },
+    {
+     "category": "execute",
+     "p": 0.5025,
+     "passed": true
+    },
+    {
+     "category": "vcs",
+     "p": 0.5426,
+     "passed": true
+    },
+    {
+     "category": "data",
+     "p": 0.5221,
+     "passed": true
+    }
+   ],
+   "answer": [
+    {
+     "category": "edit",
+     "tool": "sd",
+     "p": 0.3502
+    },
+    {
+     "category": "execute",
+     "tool": "uv",
+     "p": 0.3558
+    },
+    {
+     "category": "vcs",
+     "tool": "gh",
+     "p": 0.4727
+    },
+    {
+     "category": "data",
+     "tool": "jq",
+     "p": 0.3859
+    }
+   ],
+   "err": null
+  },
+  {
+   "prompt": "rename a variable across the repo",
+   "ideal": [
+    "grep",
+    "rg",
+    "edit",
+    "bash",
+    "sd"
+   ],
+   "expectsNothing": false,
+   "first": "gh",
+   "hit": false,
+   "falsePositive": false,
+   "n": 4,
+   "ms": 243,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.5394,
+     "passed": true
+    },
+    {
+     "category": "read",
+     "p": 0.3891,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.6398,
+     "passed": true
+    },
+    {
+     "category": "execute",
+     "p": 0.5633,
+     "passed": true
+    },
+    {
+     "category": "vcs",
+     "p": 0.6934,
+     "passed": true
+    },
+    {
+     "category": "data",
+     "p": 0.5508,
+     "passed": true
+    }
+   ],
+   "answer": [
+    {
+     "category": "search",
+     "tool": "find",
+     "p": 0.2299
+    },
+    {
+     "category": "edit",
+     "tool": "write",
+     "p": 0.365
+    },
+    {
+     "category": "execute",
+     "tool": "uv",
+     "p": 0.3561
+    },
+    {
+     "category": "vcs",
+     "tool": "gh",
+     "p": 0.4096
+    },
+    {
+     "category": "data",
+     "tool": "yq",
+     "p": 0.472
+    }
+   ],
+   "err": null
+  },
+  {
+   "prompt": "update the version number in package.json",
+   "ideal": [
+    "read",
+    "edit",
+    "sd"
+   ],
+   "expectsNothing": false,
+   "first": "gh",
+   "hit": true,
+   "falsePositive": false,
+   "n": 2,
+   "ms": 177,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.4402,
+     "passed": false
+    },
+    {
+     "category": "read",
+     "p": 0.2998,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.5852,
+     "passed": true
+    },
+    {
+     "category": "execute",
+     "p": 0.3769,
+     "passed": false
+    },
+    {
+     "category": "vcs",
+     "p": 0.6172,
+     "passed": true
+    },
+    {
+     "category": "data",
+     "p": 0.4546,
+     "passed": false
+    }
+   ],
+   "answer": [
+    {
+     "category": "edit",
+     "tool": "sd",
+     "p": 0.3681
+    },
+    {
+     "category": "vcs",
+     "tool": "gh",
+     "p": 0.4651
+    }
+   ],
+   "err": null
+  },
+  {
+   "prompt": "add a new test case for the empty input branch",
+   "ideal": [
+    "read",
+    "edit",
+    "write"
+   ],
+   "expectsNothing": false,
+   "first": "gh",
+   "hit": false,
+   "falsePositive": false,
+   "n": 3,
+   "ms": 204,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.3204,
+     "passed": false
+    },
+    {
+     "category": "read",
+     "p": 0.1324,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.5759,
+     "passed": true
+    },
+    {
+     "category": "execute",
+     "p": 0.5929,
+     "passed": true
+    },
+    {
+     "category": "vcs",
+     "p": 0.5398,
+     "passed": true
+    },
+    {
+     "category": "data",
+     "p": 0.3743,
+     "passed": false
+    }
+   ],
+   "answer": [
+    {
+     "category": "edit",
+     "tool": "sd",
+     "p": 0.3672
+    },
+    {
+     "category": "execute",
+     "tool": "uv",
+     "p": 0.3671
+    },
+    {
+     "category": "vcs",
+     "tool": "gh",
+     "p": 0.4559
+    }
+   ],
+   "err": null
+  },
+  {
+   "prompt": "run the test suite and fix whatever fails",
+   "ideal": [
+    "bash"
+   ],
+   "expectsNothing": false,
+   "first": "uv",
+   "hit": false,
+   "falsePositive": false,
+   "n": 4,
+   "ms": 197,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.424,
+     "passed": false
+    },
+    {
+     "category": "read",
+     "p": 0.2909,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.6085,
+     "passed": true
+    },
+    {
+     "category": "execute",
+     "p": 0.7533,
+     "passed": true
+    },
+    {
+     "category": "vcs",
+     "p": 0.7251,
+     "passed": true
+    },
+    {
+     "category": "data",
+     "p": 0.5289,
+     "passed": true
+    }
+   ],
+   "answer": [
+    {
+     "category": "edit",
+     "tool": "sd",
+     "p": 0.3671
+    },
+    {
+     "category": "execute",
+     "tool": "uv",
+     "p": 0.365
+    },
+    {
+     "category": "vcs",
+     "tool": "gh",
+     "p": 0.4822
+    },
+    {
+     "category": "data",
+     "tool": "yq",
+     "p": 0.4372
+    }
+   ],
+   "err": null
+  },
+  {
+   "prompt": "install the missing npm dependencies and run the tests",
+   "ideal": [
+    "bash"
+   ],
+   "expectsNothing": false,
+   "first": "uv",
+   "hit": false,
+   "falsePositive": false,
+   "n": 4,
+   "ms": 245,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.6639,
+     "passed": true
+    },
+    {
+     "category": "read",
+     "p": 0.4837,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.6713,
+     "passed": true
+    },
+    {
+     "category": "execute",
+     "p": 0.7766,
+     "passed": true
+    },
+    {
+     "category": "vcs",
+     "p": 0.6442,
+     "passed": true
+    },
+    {
+     "category": "data",
+     "p": 0.5433,
+     "passed": true
+    }
+   ],
+   "answer": [
+    {
+     "category": "search",
+     "tool": "fd",
+     "p": 0.2974
+    },
+    {
+     "category": "edit",
+     "tool": "sd",
+     "p": 0.3819
+    },
+    {
+     "category": "execute",
+     "tool": "uv",
+     "p": 0.3712
+    },
+    {
+     "category": "vcs",
+     "tool": "gh",
+     "p": 0.4834
+    },
+    {
+     "category": "data",
+     "tool": "yq",
+     "p": 0.4414
+    }
+   ],
+   "err": null
+  },
+  {
+   "prompt": "commit and push the change to GitHub",
+   "ideal": [
+    "bash",
+    "git"
+   ],
+   "expectsNothing": false,
+   "first": "gh",
+   "hit": false,
+   "falsePositive": false,
+   "n": 5,
+   "ms": 221,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.4941,
+     "passed": false
+    },
+    {
+     "category": "read",
+     "p": 0.5686,
+     "passed": true
+    },
+    {
+     "category": "edit",
+     "p": 0.6644,
+     "passed": true
+    },
+    {
+     "category": "execute",
+     "p": 0.6384,
+     "passed": true
+    },
+    {
+     "category": "vcs",
+     "p": 0.835,
+     "passed": true
+    },
+    {
+     "category": "data",
+     "p": 0.5481,
+     "passed": true
+    }
+   ],
+   "answer": [
+    {
+     "category": "read",
+     "tool": "read",
+     "p": 0.5715
+    },
+    {
+     "category": "edit",
+     "tool": "edit",
+     "p": 0.3432
+    },
+    {
+     "category": "execute",
+     "tool": "uv",
+     "p": 0.3437
+    },
+    {
+     "category": "vcs",
+     "tool": "gh",
+     "p": 0.4903
+    },
+    {
+     "category": "data",
+     "tool": "yq",
+     "p": 0.4284
+    }
+   ],
+   "err": null
+  },
+  {
+   "prompt": "build the project and show me the bundle size",
+   "ideal": [
+    "bash"
+   ],
+   "expectsNothing": false,
+   "first": "uv",
+   "hit": false,
+   "falsePositive": false,
+   "n": 1,
+   "ms": 188,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.4292,
+     "passed": false
+    },
+    {
+     "category": "read",
+     "p": 0.3562,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.2805,
+     "passed": false
+    },
+    {
+     "category": "execute",
+     "p": 0.7132,
+     "passed": true
+    },
+    {
+     "category": "vcs",
+     "p": 0.4968,
+     "passed": false
+    },
+    {
+     "category": "data",
+     "p": 0.3127,
+     "passed": false
+    }
+   ],
+   "answer": [
+    {
+     "category": "execute",
+     "tool": "uv",
+     "p": 0.3429
+    }
+   ],
+   "err": null
+  },
+  {
+   "prompt": "benchmark the scanner against the previous release",
+   "ideal": [
+    "bash",
+    "hyperfine"
+   ],
+   "expectsNothing": false,
+   "first": "gh",
+   "hit": false,
+   "falsePositive": false,
+   "n": 1,
+   "ms": 212,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.553,
+     "passed": true
+    },
+    {
+     "category": "read",
+     "p": 0.2398,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.2381,
+     "passed": false
+    },
+    {
+     "category": "execute",
+     "p": 0.6585,
+     "passed": true
+    },
+    {
+     "category": "vcs",
+     "p": 0.6004,
+     "passed": true
+    },
+    {
+     "category": "data",
+     "p": 0.3249,
+     "passed": false
+    }
+   ],
+   "answer": [
+    {
+     "category": "search",
+     "tool": "fd",
+     "p": 0.3065
+    },
+    {
+     "category": "execute",
+     "tool": "uv",
+     "p": 0.3003
+    },
+    {
+     "category": "vcs",
+     "tool": "gh",
+     "p": 0.4149
+    }
+   ],
+   "err": null
+  },
+  {
+   "prompt": "which files are over 400 lines",
+   "ideal": [
+    "find",
+    "fd",
+    "bash",
+    "rg"
+   ],
+   "expectsNothing": false,
+   "first": "gh",
+   "hit": false,
+   "falsePositive": false,
+   "n": 1,
+   "ms": 162,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.3513,
+     "passed": false
+    },
+    {
+     "category": "read",
+     "p": 0.3192,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.3136,
+     "passed": false
+    },
+    {
+     "category": "execute",
+     "p": 0.3816,
+     "passed": false
+    },
+    {
+     "category": "vcs",
+     "p": 0.5964,
+     "passed": true
+    },
+    {
+     "category": "data",
+     "p": 0.3821,
+     "passed": false
+    }
+   ],
+   "answer": [
+    {
+     "category": "vcs",
+     "tool": "gh",
+     "p": 0.4335
+    }
+   ],
+   "err": null
+  },
+  {
+   "prompt": "is this codebase vertical slice architecture or layered",
+   "ideal": [
+    "read",
+    "grep",
+    "rg",
+    "find"
+   ],
+   "expectsNothing": false,
+   "first": "gh",
+   "hit": false,
+   "falsePositive": false,
+   "n": 2,
+   "ms": 186,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.482,
+     "passed": false
+    },
+    {
+     "category": "read",
+     "p": 0.3551,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.4319,
+     "passed": false
+    },
+    {
+     "category": "execute",
+     "p": 0.5209,
+     "passed": true
+    },
+    {
+     "category": "vcs",
+     "p": 0.6931,
+     "passed": true
+    },
+    {
+     "category": "data",
+     "p": 0.5436,
+     "passed": true
+    }
+   ],
+   "answer": [
+    {
+     "category": "execute",
+     "tool": "uv",
+     "p": 0.3276
+    },
+    {
+     "category": "vcs",
+     "tool": "gh",
+     "p": 0.4274
+    },
+    {
+     "category": "data",
+     "tool": "yq",
+     "p": 0.3894
+    }
+   ],
+   "err": null
+  },
+  {
+   "prompt": "how many external dependencies does this repo have",
+   "ideal": [
+    "read",
+    "bash",
+    "grep",
+    "rg",
+    "jq"
+   ],
+   "expectsNothing": false,
+   "first": "gh",
+   "hit": false,
+   "falsePositive": false,
+   "n": 1,
+   "ms": 184,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.4929,
+     "passed": false
+    },
+    {
+     "category": "read",
+     "p": 0.2899,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.3393,
+     "passed": false
+    },
+    {
+     "category": "execute",
+     "p": 0.4281,
+     "passed": false
+    },
+    {
+     "category": "vcs",
+     "p": 0.5309,
+     "passed": true
+    },
+    {
+     "category": "data",
+     "p": 0.4282,
+     "passed": false
+    }
+   ],
+   "answer": [
+    {
+     "category": "vcs",
+     "tool": "gh",
+     "p": 0.5372
+    }
+   ],
+   "err": null
+  },
+  {
+   "prompt": "what is the capital of France?",
+   "ideal": [
+    "none"
+   ],
+   "expectsNothing": true,
+   "first": "(none)",
+   "hit": true,
+   "falsePositive": false,
+   "n": 0,
+   "ms": 133,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.364,
+     "passed": false
+    },
+    {
+     "category": "read",
+     "p": 0.3412,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.3749,
+     "passed": false
+    },
+    {
+     "category": "execute",
+     "p": 0.3525,
+     "passed": false
+    },
+    {
+     "category": "vcs",
+     "p": 0.3532,
+     "passed": false
+    },
+    {
+     "category": "data",
+     "p": 0.3754,
+     "passed": false
+    }
+   ],
+   "answer": [],
+   "err": null
+  },
+  {
+   "prompt": "how does a monorepo differ from a polyrepo?",
+   "ideal": [
+    "none"
+   ],
+   "expectsNothing": true,
+   "first": "gh",
+   "hit": false,
+   "falsePositive": true,
+   "n": 2,
+   "ms": 221,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.5601,
+     "passed": true
+    },
+    {
+     "category": "read",
+     "p": 0.3877,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.4379,
+     "passed": false
+    },
+    {
+     "category": "execute",
+     "p": 0.6321,
+     "passed": true
+    },
+    {
+     "category": "vcs",
+     "p": 0.6771,
+     "passed": true
+    },
+    {
+     "category": "data",
+     "p": 0.4577,
+     "passed": false
+    }
+   ],
+   "answer": [
+    {
+     "category": "search",
+     "tool": "fd",
+     "p": 0.2837
+    },
+    {
+     "category": "execute",
+     "tool": "uv",
+     "p": 0.4474
+    },
+    {
+     "category": "vcs",
+     "tool": "gh",
+     "p": 0.5322
+    }
+   ],
+   "err": null
+  },
+  {
+   "prompt": "explain the difference between a mutex and a semaphore",
+   "ideal": [
+    "none"
+   ],
+   "expectsNothing": true,
+   "first": "gh",
+   "hit": false,
+   "falsePositive": true,
+   "n": 2,
+   "ms": 222,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.5719,
+     "passed": true
+    },
+    {
+     "category": "read",
+     "p": 0.3032,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.4909,
+     "passed": false
+    },
+    {
+     "category": "execute",
+     "p": 0.4766,
+     "passed": false
+    },
+    {
+     "category": "vcs",
+     "p": 0.6597,
+     "passed": true
+    },
+    {
+     "category": "data",
+     "p": 0.6563,
+     "passed": true
+    }
+   ],
+   "answer": [
+    {
+     "category": "search",
+     "tool": "grep",
+     "p": 0.1999
+    },
+    {
+     "category": "vcs",
+     "tool": "gh",
+     "p": 0.485
+    },
+    {
+     "category": "data",
+     "tool": "yq",
+     "p": 0.4202
+    }
+   ],
+   "err": null
+  },
+  {
+   "prompt": "should I use Vitest or node:test for this project?",
+   "ideal": [
+    "none"
+   ],
+   "expectsNothing": true,
+   "first": "uv",
+   "hit": false,
+   "falsePositive": true,
+   "n": 3,
+   "ms": 219,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.4786,
+     "passed": false
+    },
+    {
+     "category": "read",
+     "p": 0.2618,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.5767,
+     "passed": true
+    },
+    {
+     "category": "execute",
+     "p": 0.7996,
+     "passed": true
+    },
+    {
+     "category": "vcs",
+     "p": 0.663,
+     "passed": true
+    },
+    {
+     "category": "data",
+     "p": 0.2566,
+     "passed": false
+    }
+   ],
+   "answer": [
+    {
+     "category": "edit",
+     "tool": "write",
+     "p": 0.3819
+    },
+    {
+     "category": "execute",
+     "tool": "uv",
+     "p": 0.4079
+    },
+    {
+     "category": "vcs",
+     "tool": "gh",
+     "p": 0.4588
+    }
+   ],
+   "err": null
+  },
+  {
+   "prompt": "what does the pi.on event do",
+   "ideal": [
+    "none"
+   ],
+   "expectsNothing": true,
+   "first": "gh",
+   "hit": false,
+   "falsePositive": true,
+   "n": 2,
+   "ms": 182,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.4958,
+     "passed": false
+    },
+    {
+     "category": "read",
+     "p": 0.2545,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.3114,
+     "passed": false
+    },
+    {
+     "category": "execute",
+     "p": 0.5393,
+     "passed": true
+    },
+    {
+     "category": "vcs",
+     "p": 0.5358,
+     "passed": true
+    },
+    {
+     "category": "data",
+     "p": 0.4728,
+     "passed": false
+    }
+   ],
+   "answer": [
+    {
+     "category": "execute",
+     "tool": "uv",
+     "p": 0.3606
+    },
+    {
+     "category": "vcs",
+     "tool": "gh",
+     "p": 0.4715
+    }
+   ],
+   "err": null
+  },
+  {
+   "prompt": "cist osuboru",
+   "ideal": [
+    "read"
+   ],
+   "expectsNothing": false,
+   "first": "gh",
+   "hit": false,
+   "falsePositive": false,
+   "n": 4,
+   "ms": 239,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.5257,
+     "passed": true
+    },
+    {
+     "category": "read",
+     "p": 0.2876,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.5116,
+     "passed": true
+    },
+    {
+     "category": "execute",
+     "p": 0.5692,
+     "passed": true
+    },
+    {
+     "category": "vcs",
+     "p": 0.7362,
+     "passed": true
+    },
+    {
+     "category": "data",
+     "p": 0.604,
+     "passed": true
+    }
+   ],
+   "answer": [
+    {
+     "category": "search",
+     "tool": "fd",
+     "p": 0.2387
+    },
+    {
+     "category": "edit",
+     "tool": "write",
+     "p": 0.3545
+    },
+    {
+     "category": "execute",
+     "tool": "uv",
+     "p": 0.3407
+    },
+    {
+     "category": "vcs",
+     "tool": "gh",
+     "p": 0.4135
+    },
+    {
+     "category": "data",
+     "tool": "yq",
+     "p": 0.3868
+    }
+   ],
+   "err": null
+  },
+  {
+   "prompt": "najdi vsechny soubory s TODO",
+   "ideal": [
+    "grep",
+    "rg",
+    "find",
+    "fd"
+   ],
+   "expectsNothing": false,
+   "first": "gh",
+   "hit": false,
+   "falsePositive": false,
+   "n": 2,
+   "ms": 249,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.6029,
+     "passed": true
+    },
+    {
+     "category": "read",
+     "p": 0.3234,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.4848,
+     "passed": false
+    },
+    {
+     "category": "execute",
+     "p": 0.6058,
+     "passed": true
+    },
+    {
+     "category": "vcs",
+     "p": 0.6257,
+     "passed": true
+    },
+    {
+     "category": "data",
+     "p": 0.5086,
+     "passed": true
+    }
+   ],
+   "answer": [
+    {
+     "category": "search",
+     "tool": "fd",
+     "p": 0.237
+    },
+    {
+     "category": "execute",
+     "tool": "uv",
+     "p": 0.3326
+    },
+    {
+     "category": "vcs",
+     "tool": "gh",
+     "p": 0.4153
+    },
+    {
+     "category": "data",
+     "tool": "yq",
+     "p": 0.3972
+    }
+   ],
+   "err": null
+  },
+  {
+   "prompt": "wie funktioniert der Cache",
+   "ideal": [
+    "none"
+   ],
+   "expectsNothing": true,
+   "first": "(none)",
+   "hit": true,
+   "falsePositive": false,
+   "n": 0,
+   "ms": 133,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.3923,
+     "passed": false
+    },
+    {
+     "category": "read",
+     "p": 0.2481,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.2933,
+     "passed": false
+    },
+    {
+     "category": "execute",
+     "p": 0.3742,
+     "passed": false
+    },
+    {
+     "category": "vcs",
+     "p": 0.4069,
+     "passed": false
+    },
+    {
+     "category": "data",
+     "p": 0.4939,
+     "passed": false
+    }
+   ],
+   "answer": [],
+   "err": null
+  },
+  {
+   "prompt": "kfsyfh",
+   "ideal": [
+    "none"
+   ],
+   "expectsNothing": true,
+   "first": "gh",
+   "hit": false,
+   "falsePositive": true,
+   "n": 4,
+   "ms": 243,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.5119,
+     "passed": true
+    },
+    {
+     "category": "read",
+     "p": 0.2811,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.5154,
+     "passed": true
+    },
+    {
+     "category": "execute",
+     "p": 0.5576,
+     "passed": true
+    },
+    {
+     "category": "vcs",
+     "p": 0.7279,
+     "passed": true
+    },
+    {
+     "category": "data",
+     "p": 0.5882,
+     "passed": true
+    }
+   ],
+   "answer": [
+    {
+     "category": "search",
+     "tool": "fd",
+     "p": 0.2465
+    },
+    {
+     "category": "edit",
+     "tool": "write",
+     "p": 0.365
+    },
+    {
+     "category": "execute",
+     "tool": "uv",
+     "p": 0.3548
+    },
+    {
+     "category": "vcs",
+     "tool": "gh",
+     "p": 0.4403
+    },
+    {
+     "category": "data",
+     "tool": "yq",
+     "p": 0.3867
+    }
+   ],
+   "err": null
+  },
+  {
+   "prompt": ")",
+   "ideal": [
+    "none"
+   ],
+   "expectsNothing": true,
+   "first": "gh",
+   "hit": false,
+   "falsePositive": true,
+   "n": 4,
+   "ms": 250,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.5349,
+     "passed": true
+    },
+    {
+     "category": "read",
+     "p": 0.2868,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.5088,
+     "passed": true
+    },
+    {
+     "category": "execute",
+     "p": 0.556,
+     "passed": true
+    },
+    {
+     "category": "vcs",
+     "p": 0.7272,
+     "passed": true
+    },
+    {
+     "category": "data",
+     "p": 0.5976,
+     "passed": true
+    }
+   ],
+   "answer": [
+    {
+     "category": "search",
+     "tool": "fd",
+     "p": 0.213
+    },
+    {
+     "category": "edit",
+     "tool": "write",
+     "p": 0.3693
+    },
+    {
+     "category": "execute",
+     "tool": "uv",
+     "p": 0.3407
+    },
+    {
+     "category": "vcs",
+     "tool": "gh",
+     "p": 0.4409
+    },
+    {
+     "category": "data",
+     "tool": "yq",
+     "p": 0.3913
+    }
+   ],
+   "err": null
+  },
+  {
+   "prompt": "kfy",
+   "ideal": [
+    "none"
+   ],
+   "expectsNothing": true,
+   "first": "gh",
+   "hit": false,
+   "falsePositive": true,
+   "n": 4,
+   "ms": 249,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.5331,
+     "passed": true
+    },
+    {
+     "category": "read",
+     "p": 0.2797,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.5179,
+     "passed": true
+    },
+    {
+     "category": "execute",
+     "p": 0.5614,
+     "passed": true
+    },
+    {
+     "category": "vcs",
+     "p": 0.7181,
+     "passed": true
+    },
+    {
+     "category": "data",
+     "p": 0.61,
+     "passed": true
+    }
+   ],
+   "answer": [
+    {
+     "category": "search",
+     "tool": "fd",
+     "p": 0.2317
+    },
+    {
+     "category": "edit",
+     "tool": "write",
+     "p": 0.3769
+    },
+    {
+     "category": "execute",
+     "tool": "uv",
+     "p": 0.3775
+    },
+    {
+     "category": "vcs",
+     "tool": "gh",
+     "p": 0.4452
+    },
+    {
+     "category": "data",
+     "tool": "yq",
+     "p": 0.3862
+    }
+   ],
+   "err": null
+  },
+  {
+   "prompt": "n",
+   "ideal": [
+    "none"
+   ],
+   "expectsNothing": true,
+   "first": "gh",
+   "hit": false,
+   "falsePositive": true,
+   "n": 4,
+   "ms": 236,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.5355,
+     "passed": true
+    },
+    {
+     "category": "read",
+     "p": 0.2769,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.5314,
+     "passed": true
+    },
+    {
+     "category": "execute",
+     "p": 0.5607,
+     "passed": true
+    },
+    {
+     "category": "vcs",
+     "p": 0.7273,
+     "passed": true
+    },
+    {
+     "category": "data",
+     "p": 0.6028,
+     "passed": true
+    }
+   ],
+   "answer": [
+    {
+     "category": "search",
+     "tool": "fd",
+     "p": 0.213
+    },
+    {
+     "category": "edit",
+     "tool": "write",
+     "p": 0.3726
+    },
+    {
+     "category": "execute",
+     "tool": "uv",
+     "p": 0.3494
+    },
+    {
+     "category": "vcs",
+     "tool": "gh",
+     "p": 0.4385
+    },
+    {
+     "category": "data",
+     "tool": "yq",
+     "p": 0.3804
+    }
+   ],
+   "err": null
+  },
+  {
+   "prompt": "asdfghjkl",
+   "ideal": [
+    "none"
+   ],
+   "expectsNothing": true,
+   "first": "gh",
+   "hit": false,
+   "falsePositive": true,
+   "n": 3,
+   "ms": 195,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.4251,
+     "passed": false
+    },
+    {
+     "category": "read",
+     "p": 0.2856,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.4733,
+     "passed": false
+    },
+    {
+     "category": "execute",
+     "p": 0.5182,
+     "passed": true
+    },
+    {
+     "category": "vcs",
+     "p": 0.6636,
+     "passed": true
+    },
+    {
+     "category": "data",
+     "p": 0.5111,
+     "passed": true
+    }
+   ],
+   "answer": [
+    {
+     "category": "execute",
+     "tool": "uv",
+     "p": 0.3587
+    },
+    {
+     "category": "vcs",
+     "tool": "gh",
+     "p": 0.444
+    },
+    {
+     "category": "data",
+     "tool": "yq",
+     "p": 0.3804
+    }
+   ],
+   "err": null
+  },
+  {
+   "prompt": "!!!!",
+   "ideal": [
+    "none"
+   ],
+   "expectsNothing": true,
+   "first": "gh",
+   "hit": false,
+   "falsePositive": true,
+   "n": 4,
+   "ms": 237,
+   "gates": [
+    {
+     "category": "search",
+     "p": 0.524,
+     "passed": true
+    },
+    {
+     "category": "read",
+     "p": 0.2795,
+     "passed": false
+    },
+    {
+     "category": "edit",
+     "p": 0.5074,
+     "passed": true
+    },
+    {
+     "category": "execute",
+     "p": 0.5342,
+     "passed": true
+    },
+    {
+     "category": "vcs",
+     "p": 0.7087,
+     "passed": true
+    },
+    {
+     "category": "data",
+     "p": 0.5674,
+     "passed": true
+    }
+   ],
+   "answer": [
+    {
+     "category": "search",
+     "tool": "fd",
+     "p": 0.2271
+    },
+    {
+     "category": "edit",
+     "tool": "write",
+     "p": 0.3796
+    },
+    {
+     "category": "execute",
+     "tool": "uv",
+     "p": 0.3854
+    },
+    {
+     "category": "vcs",
+     "tool": "gh",
+     "p": 0.4512
+    },
+    {
+     "category": "data",
+     "tool": "yq",
+     "p": 0.3853
+    }
+   ],
+   "err": null
+  }
+ ],
+ "det": {
+  "run the test suite and fix whatever fails": [
+   "uv+sd+gh+yq",
+   "uv+sd+gh+yq",
+   "uv+sd+gh+yq",
+   "uv+sd+gh+yq",
+   "uv+sd+gh+yq"
+  ],
+  "find where the pi.on subscriptions are declared": [
+   "(none)",
+   "(none)",
+   "(none)",
+   "(none)",
+   "(none)"
+  ],
+  "what is the capital of France?": [
+   "(none)",
+   "(none)",
+   "(none)",
+   "(none)",
+   "(none)"
+  ]
+ },
+ "silent": [
+  {
+   "prompt": "kfsyfh",
+   "steps": 4,
+   "first": "gh",
+   "passesGates": 5,
+   "err": null
+  },
+  {
+   "prompt": ")",
+   "steps": 4,
+   "first": "gh",
+   "passesGates": 5,
+   "err": null
+  },
+  {
+   "prompt": "kfy",
+   "steps": 4,
+   "first": "gh",
+   "passesGates": 5,
+   "err": null
+  },
+  {
+   "prompt": "n",
+   "steps": 4,
+   "first": "gh",
+   "passesGates": 5,
+   "err": null
+  },
+  {
+   "prompt": "asdfghjkl",
+   "steps": 3,
+   "first": "gh",
+   "passesGates": 3,
+   "err": null
+  },
+  {
+   "prompt": "!!!!",
+   "steps": 4,
+   "first": "gh",
+   "passesGates": 5,
+   "err": null
+  },
+  {
+   "prompt": "ok",
+   "steps": 4,
+   "first": "gh",
+   "passesGates": 5,
+   "err": null
+  },
+  {
+   "prompt": "yes",
+   "steps": 3,
+   "first": "gh",
+   "passesGates": 4,
+   "err": null
+  },
+  {
+   "prompt": "hi",
+   "steps": 4,
+   "first": "gh",
+   "passesGates": 5,
+   "err": null
+  },
+  {
+   "prompt": "/status",
+   "steps": 3,
+   "first": "gh",
+   "passesGates": 4,
+   "err": null
+  },
+  {
+   "prompt": "12345",
+   "steps": 4,
+   "first": "gh",
+   "passesGates": 5,
+   "err": null
+  }
+ ]
+}

@@ -39,6 +39,7 @@
     "check": "tsc --noEmit",
     "test": "npx tsx --test test/**/*.test.js",
     "eval": "npx tsx eval/accuracy.ts && npx tsx eval/gates.ts && npx tsx eval/report.ts",
+    "eval:compare": "npx tsx eval/compare.ts",
     "eval:report": "npx tsx eval/report.ts"
   },
   "dependencies": {

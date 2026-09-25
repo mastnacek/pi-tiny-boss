@@ -14,6 +14,7 @@
  */
 
 import { readFileSync, writeFileSync } from "node:fs";
+import { checkpointSlug, outPath } from "./paths.js";
 import { createLayaEngine } from "../src/slices/engine/laya.js";
 import { detectBinaries, systemTools } from "../src/slices/discovery/index.js";
 import { manifestTools } from "../src/shared/manifest.js";
@@ -130,7 +131,7 @@ for (const prompt of dataset.mustBeSilent) {
 }
 
 writeFileSync(
-	new URL("./out.json", import.meta.url),
+	outPath("out"),
 	JSON.stringify(
 		{
 			tools: tools.length,
@@ -144,5 +145,6 @@ writeFileSync(
 		1,
 	),
 );
-console.log(`wrote eval/out.json — ${out.length} cases, ${dataset.mustBeSilent.length} short-input probes`);
+console.log(`checkpoint: ${checkpointSlug()}  (PI_TINY_BOSS_SUBFOLDER=${process.env.PI_TINY_BOSS_SUBFOLDER ?? "(unset)"})`);
+console.log(`wrote eval/out.${checkpointSlug()}.json — ${out.length} cases, ${dataset.mustBeSilent.length} short-input probes`);
 await engine.close();

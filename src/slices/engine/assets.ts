@@ -110,13 +110,37 @@ function readRecord(): BundleRecord | null {
 /**
  * The files one checkpoint consists of.
  *
- * The recorded list wins over the constant, because the library is the authority
- * on what a bundle contains; the constant only answers for a machine that has
- * never fetched.
+ * The recorded list wins, because the library is the authority on what a bundle
+ * contains. Without a record the answer is the *core* set rather than the
+ * published manifest, and that distinction was found the hard way: exporting
+ * `laya-typed-decisions` with the library's own `export/export_onnx.py` produced
+ * `laya.onnx` + `laya.onnx.data` here, but the script asks for
+ * `external_data=False` — so a smaller checkpoint can legitimately be a single
+ * self-contained file, and demanding `.data` would make the gate refuse a bundle
+ * that loads perfectly.
+ *
+ * The record keeps the strict five-file list where it matters: a *fetched* bundle,
+ * where a missing `.data` means a truncated download. An unrecorded bundle is one
+ * the user produced or copied, and there the graph itself is the thing to check —
+ * a broken one fails loudly at load, latched, carrying ONNX's own message.
  */
 export function bundleFiles(): readonly string[] {
-	return readRecord()?.files ?? BUNDLE_FILES;
+	return readRecord()?.files ?? CORE_BUNDLE_FILES;
 }
+
+/**
+ * The files a bundle must have to load, regardless of how it was produced.
+ *
+ * `laya.onnx.data` is deliberately absent: it exists only when the graph keeps its
+ * weights outside the protobuf, which depends on the checkpoint's size rather
+ * than on anything this plugin can know from a file list.
+ */
+const CORE_BUNDLE_FILES = [
+	"laya.onnx",
+	"laya_config.json",
+	"tokenizer/tokenizer.json",
+	"tokenizer/tokenizer_config.json",
+] as const;
 
 /**
  * The bundle directory to load from.

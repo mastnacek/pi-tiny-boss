@@ -22,7 +22,9 @@ model which tools to reach for first.
 >
 > **Measured 2026-09-25: 7/34 = 21% — the same accuracy needle3 scored, and the
 > reason it was replaced.** The engine is fast, offline, failure-free and stable,
-> and the base checkpoint is at chance on this task. Read
+> and the base checkpoint is at chance on this task. A locally exported
+> fine-tuned checkpoint scored *worse* (15%), and the per-bucket analysis shows
+> why: only `edit` and `execute` carry signal. Read
 > [Measured quality](#measured-quality) before enabling it, and note the
 > recommendation there.
 
@@ -378,25 +380,78 @@ passed a gate, every one of them resolving to `gh` — so the 24-character gate 
 the hook is what protects a session, not the model's judgement. That was true of
 needle3 and it is true here.
 
-### The identified next step
+### The export, run
 
-The gap is the checkpoint, not the design, but closing it is not a one-line
-change: `receptron/laya-onnx` publishes **only** the English checkpoint at its
-root — there is no `multilingual` and no `typed-decisions` subfolder, despite the
-library's README naming `subfolder: "multilingual"` as an option. Exporting the
-fine-tuned [`laya-typed-decisions`](https://huggingface.co/convaiinnovations/laya-typed-decisions)
-checkpoint means running `@receptron/laya`'s `export/export_onnx.py` yourself
-(Python, torch, onnxscript). Then either point `PI_TINY_BOSS_MODEL_DIR` straight at
-the output, or publish it under a subfolder the way the library documents and set
-`PI_TINY_BOSS_SUBFOLDER` to match. That is the experiment this harness exists to
-evaluate:
+The gap was the checkpoint, so the checkpoint was exported. `receptron/laya-onnx`
+publishes only the English bundle, so the fine-tuned
+[`laya-typed-decisions`](https://huggingface.co/convaiinnovations/laya-typed-decisions)
+checkpoint was exported locally with the library's own `export/export_onnx.py`:
 
 ```bash
-npm run eval          # writes eval/out.json, scores it, writes eval/gates.json
+uv venv -p 3.12 .venv
+uv pip install -p .venv/Scripts/python.exe torch --index-url https://download.pytorch.org/whl/cpu
+uv pip install -p .venv/Scripts/python.exe transformers safetensors onnx onnxscript onnxruntime huggingface_hub
+# model/ = model.safetensors, rl_agent_config.json, encoder/, tokenizer/ + rl_common.py from convaiinnovations/laya
+PYTHONUTF8=1 .venv/Scripts/python.exe export_onnx.py model <out>
 ```
 
-Both files are committed, so the numbers above are auditable and a re-run is
-comparable rather than a fresh claim.
+Three things to know if you run this yourself. `export_onnx.py` imports
+`rl_common` from the model directory, so that file has to be copied in from
+`convaiinnovations/laya`, which is a *different* repo from the checkpoint's. The
+exporter prints a `✅`, which dies on a Windows console with a `cp1250` codec —
+hence `PYTHONUTF8=1`. And it asks for `external_data=False`, yet a large checkpoint
+still produces a `laya.onnx.data` sidecar, so both bundle shapes are legitimate;
+the asset gate accordingly treats `.data` as required only for a *recorded* bundle,
+where its absence means a truncated download. With all of that handled the export
+took **70 seconds** on CPU and reported `max |dlogits| = 1.67e-06` — the ONNX graph
+is the PyTorch graph.
+
+The result went straight into the documented layout, so no override is needed:
+
+```
+~/.cache/receptron-laya/receptron--laya-onnx/main/typed-decisions/
+PI_TINY_BOSS_SUBFOLDER=typed-decisions npm run eval
+```
+
+It loads on the GPU through the same `auto` provider chain, with
+`max_len=1024 head_max_len=256` — double the English base's context and option
+budget — and scores 15%.
+
+### What the numbers actually say
+
+Per-bucket AUC, both checkpoints, is more useful than the headline:
+
+| Bucket | English base | typed-decisions |
+| --- | --- | --- |
+| `edit` | **0.800** | **0.817** |
+| `execute` | **0.750** | **0.745** |
+| `data` | 0.545 | 0.303 |
+| `search` | 0.504 | 0.467 |
+| `read` | 0.362 | 0.446 |
+| `vcs` | n/a | n/a |
+
+Two buckets separate, and they separate the *same way* across two checkpoints and
+across two different option budgets (192 vs 256 tokens). That is what makes them
+credible rather than lucky: `edit` and `execute` carry real signal, and the other
+four are chance. So the binding constraint is **the question set, not the
+checkpoint** — asking "is this need present?" six times independently gets a usable
+answer twice and a coin flip four times, and fine-tuning did not move that.
+
+`vcs` is unmeasurable here by construction: the dataset names `git`, not `gh`, so no
+plan that picks the `vcs` tool can ever be a hit and every `vcs` firing counts as a
+false positive. Read it as "not tested", not "broken". Every case remains hittable
+through at least one manifest tool, so the headline accuracy is not similarly
+penalised.
+
+```bash
+npm run eval            # writes eval/out.<checkpoint>.json, eval/gates.<checkpoint>.json
+npm run eval:compare    # the two checkpoints side by side, including AUC
+```
+
+Artifacts are keyed by checkpoint, so a second run cannot silently overwrite the
+first — which matters when comparing checkpoints is the entire point. All four
+files are committed, so every number here is auditable and a re-run is comparable
+rather than a fresh claim.
 
 ## Hardware and acceleration
 
@@ -410,7 +465,7 @@ Ti 16 GB; Windows 11; `onnxruntime-node` 1.30.0). p50 for one plugin plan:
 
 | Provider | p50 | Note |
 | --- | --- | --- |
-| `webgpu` (RTX 5060 Ti) | **129–163 ms** | same answers as CPU, to two decimals |
+| `webgpu` (RTX 5060 Ti) | **129–221 ms** | same answers as CPU, to two decimals |
 | `cpu`, 24 threads | 578 ms | best CPU setting |
 | `cpu`, 4 threads | 1131 ms | the old default, for no reason |
 | `cpu`, 32 threads | 793 ms | every logical thread is *worse* — oversubscription |

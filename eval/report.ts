@@ -8,6 +8,7 @@
  */
 
 import { readFileSync } from "node:fs";
+import { checkpointSlug, outPath } from "./paths.js";
 
 interface Gate {
 	category: string;
@@ -38,7 +39,9 @@ interface Payload {
 	silent: Array<{ prompt: string; steps: number; first: string; passesGates: number; err: string | null }>;
 }
 
-const r = JSON.parse(readFileSync(new URL("./out.json", import.meta.url), "utf8")) as Payload;
+const r = JSON.parse(readFileSync(outPath("out"), "utf8")) as Payload;
+console.log(`checkpoint: ${checkpointSlug()}
+`);
 
 /**
  * Which dataset tool names imply which bucket.
